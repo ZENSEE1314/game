@@ -20,9 +20,10 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { GameState, Opponent, BattleResult, OfflineEarnings } from './types';
-import { createInitialState, generateOpponents } from './initial-state';
+import { createInitialState, generateOpponents, syncDerived } from './initial-state';
 import { applyProductionTick, calculate_offline_earnings, refreshShield } from './engine';
 import { applyOfflineEarnings } from './engine';
+import { weaponMultiplierForTier } from './constants';
 import {
   doUpgradeFacility,
   doRecruitTroops,
@@ -36,7 +37,8 @@ import {
   doRecordOfflineReturn,
 } from './actions';
 import { rollDailyQuests, questsExpired, checkAchievements } from './quests';
-import { performRebirth, allocatePerk, previewPrestigeGain, canRebirth } from './prestige';
+import { performRebirth, allocatePerk, previewPrestigeGain, canRebirth, applyWarmongerPerk } from './prestige';
+import { reconcileEvent } from './events';
 
 interface PendingOffline {
   earnings: OfflineEarnings;
@@ -155,6 +157,8 @@ export const useGameStore = create<GameStore>()(
         set((s) => {
           let next = applyProductionTick(s.state, 1);
           next = refreshShield(next);
+          // Reconcile events (expiry check + small spawn chance) ~once/sec.
+          next = reconcileEvent(next, Date.now());
           return { state: next };
         });
       },
@@ -176,6 +180,21 @@ export const useGameStore = create<GameStore>()(
               quests_rotated_at: now,
             };
           }
+
+          // Reconcile events: clear expired, force-spawn one if none active
+          // so the player always has something engaging on return.
+          state = reconcileEvent(state, now, true);
+
+          // Re-sync derived stats so prestige perks (fortified vault cap,
+          // quartermaster troop cap) apply immediately on load.
+          state = syncDerived(state);
+
+          // Re-apply warmonger perk to weapon multipliers (in case the
+          // player invested points in a previous session).
+          state.gear.weapon_multipliers = applyWarmongerPerk(
+            state,
+            weaponMultiplierForTier(state.gear.weapon_tier_level),
+          );
 
           const deltaSec = Math.max(0, (now - state.last_saved_at) / 1000);
           if (deltaSec < 30) {
@@ -365,7 +384,18 @@ export const useGameStore = create<GameStore>()(
         const s = get();
         const result = allocatePerk(s.state, perkId);
         if (result.success) {
-          set({ state: { ...s.state, prestige: result.prestige } });
+          // Re-sync derived stats so vault/troop-cap multipliers apply,
+          // and re-apply warmonger to weapon multipliers if that perk
+          // was invested.
+          let next: GameState = { ...s.state, prestige: result.prestige };
+          next = syncDerived(next);
+          if (perkId === 'warmonger') {
+            next.gear.weapon_multipliers = applyWarmongerPerk(
+              next,
+              weaponMultiplierForTier(next.gear.weapon_tier_level),
+            );
+          }
+          set({ state: next });
         }
         return result.success;
       },
@@ -444,6 +474,7 @@ export const useGameStore = create<GameStore>()(
           achievements_unlocked: currentState.achievements_unlocked ?? current.state.achievements_unlocked,
           battle_history: currentState.battle_history ?? current.state.battle_history,
           prestige: currentState.prestige ?? current.state.prestige,
+          active_event: currentState.active_event ?? current.state.active_event,
           resources: { ...current.state.resources, ...(currentState.resources ?? {}) },
           player: { ...current.state.player, ...(currentState.player ?? {}) },
           army: { ...current.state.army, ...(currentState.army ?? {}) },

@@ -250,3 +250,87 @@ Entering this round, the game had 5 working tabs (Base Camp, Barracks/Forge, Are
 3. **More quest variety** — weekly quests, chain quests, story arcs.
 4. **Sound design** — ambient forge/PvP sound effects.
 5. **Balance tuning** — the sqrt prestige curve (1000 gold = 1 pt, 100K = 10 pts) may need tuning after playtesting; consider flat bonuses per rebirth tier.
+
+---
+Task ID: FE-3
+Agent: frontend-styling-expert
+Task: Build the limited-time EventBanner UI (renders above tabs when state.active_event is non-null) + apply VLM-driven styling polish to the Leaderboard and Prestige panels.
+
+Work Log:
+- Read worklog.md (project history, 7-tab idle game), events.ts (EVENT_POOL + reconcileEvent + eventMultiplier + eventRemainingLabel), types.ts (GameEvent schema + GameState.active_event), and the existing ResourceBar / LeaderboardPanel / PrestigePanel / page.tsx to lock the design language (dark stone-950, amber/emerald/rose, mono tabular-nums, Lucide, Framer Motion, shadcn Card/Badge/Progress, NO indigo/blue).
+- CREATED `src/components/game/EventBanner.tsx` ('use client'):
+  - Renders ONLY when state.active_event is non-null (reads via `useGameStore((s) => s.state.active_event)`); returns null otherwise via AnimatePresence.
+  - Horizontal Card with dark stone gradient background + buff-type-tinted ring + glow shadow (`shadow-{amber|emerald|rose|orange}-900/40`).
+  - Left: large event avatar emoji (text-2xl/3xl) in a rounded gradient badge tinted by buff type.
+  - Center: event title (text-amber-200 bold), buff-type chip ("Zap 1.5× Raw" / "2× Gold" / "2× PvP Loot" / "1.5× XP" etc.) color-coded gold=amber, raw/refined=emerald, pvp_loot=rose, xp=warm-orange (NEVER blue/indigo), plus a "Limited Event" tag (hidden on mobile). Description below (text-stone-300, text-xs, line-clamp-2).
+  - Right: Clock icon + live countdown label ("1h 47m" / "12m") with role=progressbar showing depleting time-remaining as a fraction of the def's total duration (looked up from EVENT_POOL by def_key, falls back to 2h default). Bar is animated via Framer Motion width transition.
+  - Local 1s setInterval tick keeps the countdown + bar smooth even if the global tick is briefly delayed (cleanup on unmount).
+  - Urgency mode: when <10 min remain, the pulsing glow shadow intensifies + turns rose + the countdown text turns rose-200 (was amber-100) for visual urgency.
+  - Framer Motion entrance: slide-down + fade-in with height auto (so layout shifts smoothly). Exit reverses. Subtle infinite boxShadow pulse (2.4s normal, 1.2s urgent) conveys "don't miss this!" urgency.
+  - Mobile responsive: avatar shrinks size-12→size-14 sm:, chip text-[10px]→text-[11px] sm:, bar width w-20→w-28 sm:.
+- MODIFIED `src/app/page.tsx`:
+  - Imported `EventBanner` from `@/components/game/EventBanner`.
+  - Inserted `<EventBanner />` (wrapped in a `<div className="mb-3">` for spacing) as the FIRST child of `<main>`, right before the `<Tabs>` block — sits between the sticky ResourceBar and the tab bar, scrolls with content (not sticky).
+  - Preserved ALL existing structure: useGameLoop, 7 tabs (Base Camp / Barracks & Forge / Arena / Quests / Stats / Leaderboard / Prestige), AnimatePresence tab transitions, OfflineEarningsModal, BattleReportModal, NotificationToasts, AmbientGlow orbs, sticky footer with Reset Game AlertDialog.
+- MODIFIED `src/components/game/LeaderboardPanel.tsx` (VLM polish):
+  - Row separators: each LeaderRow now gets `border-b last:border-b-0` — bottom border tints by row type (amber for player via `border-b-amber-700/50`, stone for others via `border-b-stone-800/40` / `border-b-stone-800/50` for top-3). Removed the prior `space-y-1.5` gap on the scroll container so rows sit flush with only the border separator between them (tighter, more scannable rhythm).
+  - Player row contrast boost: swapped gradient to `bg-gradient-to-r from-amber-950/50 via-amber-900/30 to-amber-900/20` (more saturated amber, no fade to stone), border to `border-amber-600/60` (per spec), shadow to `shadow-md shadow-amber-900/40`.
+  - Rank alignment: kept `size-9 sm:size-10` square medal cells, added explicit `text-center` to the cell + `w-8 text-center` to the inner rank-number span so digits (and the medal icons above them) line up uniformly down the column.
+- MODIFIED `src/components/game/PrestigePanel.tsx` (VLM polish):
+  - Current Run Gold contrast: label now `text-amber-300 font-semibold` (was text-stone-300), big number now `text-amber-100 text-base font-bold` (was text-amber-200). Also swapped the wrapper border from `border-stone-800/60` to `border-amber-900/40` so the gold block reads as amber-themed.
+  - Rebirth button legibility: gradient brightened to `from-rose-500 to-rose-700` (was from-rose-600 to-rose-800), added `font-semibold` + `ring-1 ring-rose-400/40` + `shadow-md shadow-rose-900/50` + explicit `text-rose-50 hover:text-rose-50` so the label stays high-contrast on hover.
+  - Prestige Perks section separator: added `border-t border-stone-800/60 pt-3` to the section wrapper (was just `pt-1`) for clear visual hierarchy between the rebirth action card and the perk grid. Bumped the "Prestige Perks" header text from `text-stone-300` to `text-stone-200` for slightly better contrast.
+- Verified: `bun run lint` clean (0 errors, 0 warnings). Dev server returns HTTP 200 on `/`. dev.log shows only successful compilations, no runtime errors. agent-browser visual QA confirmed: EventBanner rendered correctly on page load (force-spawned "Timber Festival" 1.5× Raw event with "1h 47m remaining" + 90% depleting bar), all 7 tabs render, Leaderboard and Prestige panels load cleanly, no console errors.
+
+Stage Summary:
+- Files created: `src/components/game/EventBanner.tsx` (288 lines, 'use client', Framer Motion + AnimatePresence + local 1s tick).
+- Files modified: `src/app/page.tsx` (+5 lines: import + banner wrapper), `src/components/game/LeaderboardPanel.tsx` (row separators + player-row contrast + rank alignment), `src/components/game/PrestigePanel.tsx` (Current Run Gold contrast + Rebirth button legibility + Prestige Perks separator).
+- Design language honored throughout: dark stone-950 base, amber primary, emerald for raw/refined events, rose for pvp_loot + Rebirth button, warm orange for XP event, NO indigo/blue. Mono tabular-nums on every numeric value. Lucide icons (Clock, Zap, Sparkles, Trophy, Crown, Medal, RotateCcw, etc.). Framer Motion for entrance/exit + pulsing glow. shadcn Card/Badge/Progress reused (no new primitives). Mobile responsive.
+- No outstanding issues. EventBanner correctly renders only when active_event is non-null, exits cleanly when the event expires (AnimatePresence handles the unmount). Countdown + progress bar update every second via local interval + global tick. Color-coded buff chips match the buff_type. Leaderboard rows now have visible separators + brighter player row. Prestige "Current Run Gold" reads clearly amber-100/amber-300. Rebirth button is high-contrast rose with ring + shadow. Prestige Perks section is visually separated from the rebirth action card.
+
+---
+Task ID: 8 (webDevReview round 3)
+Agent: Main Architect (QA + Prestige perk bug fix + Help Guide)
+Task: Recurring webDevReview — QA, fix the critical prestige perk wiring bug (quartermaster/warmonger/fortified perks were invested but had no effect), fix the beforeunload race condition, add a How-to-Play guide for new-player onboarding.
+
+## Current Project Status Assessment
+Entering this round, the game had 7 working tabs (Base Camp, Barracks/Forge, Arena, Quests, Stats, Leaderboard, Prestige) with quests, achievements, career stats, combat preview, prestige/rebirth, leaderboard, and limited-time events all live. The previous round's #1 recommendation was: "Wire the remaining prestige perks (quartermaster/warmonger/fortified) into their systems — currently only industrious/refining/logistics apply via the engine." QA via agent-browser confirmed this was a FUNCTIONAL BUG: players could invest prestige points in 3 perks that did nothing.
+
+## Completed Modifications This Round
+
+### 1. CRITICAL BUG FIX: Prestige perks now fully wired
+The previous round added `syncDerived` to `reconcileOnLoad` and `allocatePrestigePerk`, but:
+- **Warmonger perk was NOT applied on load** — weapon multipliers stayed at base (1.0) even with points invested. Fixed by adding `applyWarmongerPerk(state, weaponMultiplierForTier(...))` to `reconcileOnLoad` in `src/lib/game/store.ts` so weapon multipliers get the warmonger bonus on every load.
+- Verified end-to-end via a dev-only store exposure (`window.__gameStore`): cheated 10 points + perks {quartermaster:3, fortified:2, warmonger:1}, reloaded, and confirmed:
+  - Fortified (2pts × 15%): vault = 3500 × 1.3 = 4550 ✓
+  - Quartermaster (3pts × 10%): troop cap = 30 × 1.3 = 39 ✓
+  - Warmonger (1pt × 3%): attack_mult = 1.03, defense_mult = 1.03 ✓
+- Verified allocate flow: clicking "Invest 1 Point" in Quartermaster immediately increased troop cap from 39 → 42 (30 × 1.4) and decremented unspent points 10 → 9.
+- Removed the dev-only store exposure after testing.
+- Files: `src/lib/game/store.ts` (reconcileOnLoad warmonger application), `src/lib/game/prestige.ts` (applyWarmongerPerk helper — already existed from prior round), `src/lib/game/constants.ts` (recomputeDerived accepts optional vault/troopCap mults), `src/lib/game/initial-state.ts` (syncDerived passes fortified + quartermaster mults).
+
+### 2. BUG FIX: beforeunload race condition
+- `src/hooks/useGameLoop.ts` — added a `hydratedRef` (useRef) that gates the `beforeunload`/`visibilitychange` save handler. Before this fix, a reload fired BEFORE the async `rehydrate()` completed would call `tick()` which persists the empty initial state (perks={}, run_gold=0) over the saved state, wiping progress. Now `onHide` returns early if `!hydratedRef.current`, so pre-rehydrate reloads cannot corrupt saved state. The ref is set to `true` only after `await useGameStore.persist.rehydrate()` resolves.
+
+### 3. NEW FEATURE: How-to-Play Guide
+- `src/components/game/HelpGuide.tsx` (NEW) — a "How to Play" modal triggered from the footer. 8 accordion sections explaining every game system: Resources & Refining, Army & Weapons, Arena & PvP Combat, Rewarded Ads (3 types), Quests & Achievements, Rebirth & Prestige, Limited-Time Events, Leaderboard. Each section has a themed Lucide icon badge. A "New" pulse badge appears on the trigger button until the player opens the guide once (tracked in localStorage `idle-war-help-seen`). Dialog is scrollable (max-h-[85vh]) with an Accordion (first section expanded by default). Mobile-friendly (button label hidden on small screens, just the icon).
+- `src/app/page.tsx` (modified) — added `<HelpGuide />` to the footer next to the Reset Game button, wrapped both in a flex container. Preserved all existing structure (7 tabs, EventBanner, modals, AmbientGlow, sticky footer).
+
+## Verification Results
+- `bun run lint` — clean (0 errors).
+- agent-browser QA: all 7 tabs render, EventBanner shows active events (King's Bounty, Blood Feud seen across reloads), HelpGuide modal opens with all 8 sections, no runtime errors.
+- Prestige perk verification (via dev store exposure): fortified vault 3500→4550, quartermaster troopcap 30→39, warmonger mult 1.0→1.03, all applied on load + on allocate.
+- Allocate flow verified: clicking "Invest 1 Point" in Quartermaster immediately boosted troop cap 39→42.
+- VLM (glm-4.6v) confirmed: HelpGuide is "clear, well-organized, explains core mechanics for new players, no visual issues."
+- Dev log: all 200 responses, no 500s, no runtime errors.
+
+## Unresolved Issues / Risks
+- None blocking. All 6 prestige perks now function correctly across load/allocate/rebirth.
+- The beforeunload gate prevents pre-rehydrate state corruption; the legitimate persistence flow (in-memory store is source of truth) works correctly.
+
+## Priority Recommendations for Next Phase
+1. **Server-side persistence** — migrate from localStorage to Prisma/SQLite for cross-device progress. The API routes already exist; wire the store to sync via API.
+2. **More quest variety** — weekly quests, chain quests, story arcs.
+3. **Sound design** — ambient forge/PvP sound effects (currently visual-only).
+4. **Balance tuning** — the sqrt prestige curve (1000 gold = 1 pt, 100K = 10 pts) may need tuning after playtesting.
+5. **Tutorial overlay** — for first-time players, a step-by-step spotlight tour pointing at the ResourceBar, Base Camp upgrade buttons, etc. (the HelpGuide covers this textually, but a visual tour would be more engaging).

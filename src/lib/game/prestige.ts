@@ -125,6 +125,22 @@ export function perkMultiplier(state: GameState, perkId: string): number {
 }
 
 /**
+ * Apply the warmonger prestige perk to a base weapon-multiplier pair.
+ * Returns a new { attack_mult, defense_mult } scaled by the perk bonus.
+ * Used whenever weapon multipliers are recomputed (tier upgrade, rebirth).
+ */
+export function applyWarmongerPerk(
+  state: GameState,
+  base: { attack_mult: number; defense_mult: number },
+): { attack_mult: number; defense_mult: number } {
+  const warmongerMult = perkMultiplier(state, 'warmonger');
+  return {
+    attack_mult: +(base.attack_mult * warmongerMult).toFixed(4),
+    defense_mult: +(base.defense_mult * warmongerMult).toFixed(4),
+  };
+}
+
+/**
  * Recompute the global multiplier (sum of all perk effects, used for
  * display) and return an updated PrestigeState. The actual per-system
  * multipliers are read via perkMultiplier() by the engine.
@@ -200,6 +216,16 @@ export function performRebirth(state: GameState): { state: GameState; pointsGain
     is_raidable: true,
     last_saved_at: Date.now(),
   };
+
+  // Apply prestige multipliers to the fresh run: vault/troop cap via
+  // syncDerived, and warmonger to weapon multipliers.
+  newState.player.secure_vault_limit = Math.floor(
+    newState.player.secure_vault_limit * perkMultiplier(newState, 'fortified'),
+  );
+  newState.army.max_troop_capacity = Math.floor(
+    newState.army.max_troop_capacity * perkMultiplier(newState, 'quartermaster'),
+  );
+  newState.gear.weapon_multipliers = applyWarmongerPerk(newState, newState.gear.weapon_multipliers);
 
   return { state: newState, pointsGained, success: true };
 }

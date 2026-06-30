@@ -244,6 +244,30 @@ export interface GameState {
   achievements_unlocked: string[];
   /** Prestige / rebirth meta-progression. */
   prestige: PrestigeState;
+  /** Active limited-time event (or null if none). */
+  active_event: GameEvent | null;
+}
+
+/**
+ * A limited-time event that grants a temporary buff. Events rotate
+ * periodically and offer a themed multiplier bonus to encourage
+ * return visits.
+ */
+export interface GameEvent {
+  /** Stable event-definition key. */
+  def_key: string;
+  /** Display title. */
+  title: string;
+  /** Themed description. */
+  description: string;
+  /** Emoji avatar for the event. */
+  avatar: string;
+  /** Which production system is buffed. */
+  buff_type: 'raw' | 'refined' | 'gold' | 'pvp_loot' | 'xp';
+  /** Multiplier applied to the buffed system (e.g. 2 = 2x). */
+  multiplier: number;
+  /** Epoch ms when the event ends. */
+  ends_at: number;
 }
 
 

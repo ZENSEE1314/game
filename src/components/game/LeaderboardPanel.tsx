@@ -90,17 +90,22 @@ function LeaderRow({ entry }: LeaderRowProps) {
     <div
       className={cn(
         "flex items-center gap-2.5 rounded-lg border px-2.5 py-2 transition-colors sm:gap-3 sm:px-3 sm:py-2.5",
+        // Subtle row separator on the bottom of every row except the last,
+        // tinted by row type (amber for the player, stone for everyone
+        // else) — gives the scroll list a more scannable rhythm per VLM.
+        "border-b last:border-b-0",
         entry.is_player
-          ? "border-amber-500/60 bg-gradient-to-r from-amber-950/40 via-amber-900/20 to-stone-900/40 shadow-md shadow-amber-900/30"
+          ? "border-amber-600/60 border-b-amber-700/50 bg-gradient-to-r from-amber-950/50 via-amber-900/30 to-amber-900/20 shadow-md shadow-amber-900/40"
           : isTop3
-            ? "border-stone-700/60 bg-stone-900/40"
-            : "border-stone-800/60 bg-stone-900/30 hover:border-stone-700/70 hover:bg-stone-900/50",
+            ? "border-stone-700/60 border-b-stone-800/50 bg-stone-900/40"
+            : "border-stone-800/60 border-b-stone-800/40 bg-stone-900/30 hover:border-stone-700/70 hover:bg-stone-900/50",
       )}
     >
-      {/* Rank */}
+      {/* Rank — fixed-width cell so medal icons and numeric ranks line
+          up uniformly down the column. */}
       <div
         className={cn(
-          "flex size-9 shrink-0 items-center justify-center rounded-md sm:size-10",
+          "flex size-9 shrink-0 items-center justify-center rounded-md text-center sm:size-10",
           medal.wrap,
         )}
       >
@@ -111,7 +116,7 @@ function LeaderRow({ entry }: LeaderRowProps) {
         ) : (
           <span
             className={cn(
-              "font-mono text-sm font-bold tabular-nums sm:text-base",
+              "w-8 text-center font-mono text-sm font-bold tabular-nums sm:text-base",
               medal.text,
             )}
           >
@@ -328,10 +333,14 @@ export function LeaderboardPanel() {
         </div>
       )}
 
-      {/* Scrollable leaderboard list */}
-      <div className="max-h-[32rem] space-y-1.5 overflow-y-auto pr-1">
+      {/* Scrollable leaderboard list. Rows use bottom borders (instead
+          of margin gaps) for tighter, more scannable separation. */}
+      <div className="max-h-[32rem] overflow-y-auto pr-1">
         {entries.map((entry) => (
-          <LeaderRow key={`${entry.rank}-${entry.name}`} entry={entry} />
+          <LeaderRow
+            key={`${entry.rank}-${entry.name}`}
+            entry={entry}
+          />
         ))}
       </div>
 

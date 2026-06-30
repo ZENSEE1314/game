@@ -321,13 +321,13 @@ export function PrestigePanel() {
         </div>
 
         {/* Current run gold + progress to next prestige point */}
-        <div className="rounded-lg border border-stone-800/60 bg-stone-950/40 p-3">
+        <div className="rounded-lg border border-amber-900/40 bg-stone-950/40 p-3">
           <div className="mb-1.5 flex items-center justify-between text-[11px]">
-            <span className="inline-flex items-center gap-1.5 text-stone-300">
+            <span className="inline-flex items-center gap-1.5 font-semibold text-amber-300">
               <Coins className="size-3.5 text-amber-400" />
               <span>Current Run Gold</span>
             </span>
-            <span className="font-mono font-bold tabular-nums text-amber-200">
+            <span className="font-mono text-base font-bold tabular-nums text-amber-100">
               {formatNumber(prestige.current_run_gold)}
             </span>
           </div>
@@ -413,9 +413,9 @@ export function PrestigePanel() {
             <Button
               disabled={!allowed}
               className={cn(
-                "w-full gap-1.5",
+                "w-full gap-1.5 font-semibold",
                 allowed
-                  ? "bg-gradient-to-b from-rose-600 to-rose-800 text-rose-50 shadow-lg shadow-rose-900/40 hover:from-rose-500 hover:to-rose-700"
+                  ? "bg-gradient-to-b from-rose-500 to-rose-700 text-rose-50 shadow-md shadow-rose-900/50 ring-1 ring-rose-400/40 hover:from-rose-400 hover:to-rose-600 hover:text-rose-50"
                   : "bg-stone-800 text-stone-500 hover:bg-stone-800",
               )}
             >
@@ -455,11 +455,12 @@ export function PrestigePanel() {
         </AlertDialog>
       </Card>
 
-      {/* Prestige Perks section */}
-      <div className="space-y-2 pt-1">
+      {/* Prestige Perks section — subtle top separator for visual
+          hierarchy between the rebirth action card and the perk grid. */}
+      <div className="space-y-2 border-t border-stone-800/60 pt-3">
         <div className="flex items-center gap-2">
           <Sparkles className="size-4 text-amber-400" />
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-stone-300">
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-stone-200">
             Prestige Perks
           </h3>
           <div className="h-px flex-1 bg-stone-800/60" />

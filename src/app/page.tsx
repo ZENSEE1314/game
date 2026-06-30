@@ -21,6 +21,8 @@ import * as React from "react";
 import { useGameLoop } from "@/hooks/useGameLoop";
 import { useGameStore } from "@/lib/game/store";
 import { ResourceBar } from "@/components/game/ResourceBar";
+import { EventBanner } from "@/components/game/EventBanner";
+import { HelpGuide } from "@/components/game/HelpGuide";
 import { BaseCamp } from "@/components/game/BaseCamp";
 import { BarracksForge } from "@/components/game/BarracksForge";
 import { Arena } from "@/components/game/Arena";
@@ -111,6 +113,11 @@ export default function Home() {
 
       {/* Main content */}
       <main className="relative z-10 mx-auto w-full max-w-6xl flex-1 px-3 py-4 sm:px-4 sm:py-6">
+        {/* Limited-time event banner (renders only when an event is active). */}
+        <div className="mb-3">
+          <EventBanner />
+        </div>
+
         <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="gap-3">
           {/* Tab bar: horizontally scrollable on small screens so all 7
               tabs remain reachable at 375px. The scroll container hides
@@ -172,17 +179,19 @@ export default function Home() {
           <div className="text-center text-[11px]">
             Ad-supported · Simulated rewarded ads · Progress saved locally
           </div>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 border-stone-700 bg-stone-900 text-stone-400 hover:bg-stone-800 hover:text-rose-300"
-              >
-                <RotateCcw className="size-3.5" />
-                Reset Game
-              </Button>
-            </AlertDialogTrigger>
+          <div className="flex items-center gap-2">
+            <HelpGuide />
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 border-stone-700 bg-stone-900 text-stone-400 hover:bg-stone-800 hover:text-rose-300"
+                >
+                  <RotateCcw className="size-3.5" />
+                  Reset Game
+                </Button>
+              </AlertDialogTrigger>
             <AlertDialogContent className="border-stone-700 bg-stone-950 text-stone-100">
               <AlertDialogHeader>
                 <AlertDialogTitle className="text-stone-100">
@@ -206,6 +215,7 @@ export default function Home() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+          </div>
         </div>
       </footer>
     </div>

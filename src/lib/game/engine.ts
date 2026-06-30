@@ -21,6 +21,7 @@ import {
   xpForLevel,
 } from './constants';
 import { perkMultiplier, trackRunGold } from './prestige';
+import { eventMultiplier } from './events';
 
 /**
  * Advance a single resource by `seconds`.
@@ -72,12 +73,17 @@ export function applyProductionTick(state: GameState, seconds: number): GameStat
   const refineMult = perkMultiplier(next, 'refining');
   const goldMult = perkMultiplier(next, 'logistics');
 
-  next.resources.wood = tickResource(next.resources.wood, seconds, rawMult, refineMult);
-  next.resources.stone = tickResource(next.resources.stone, seconds, rawMult, refineMult);
-  next.resources.iron = tickResource(next.resources.iron, seconds, rawMult, refineMult);
+  // Event multipliers (1.0 if no active event for that buff type).
+  const rawEvent = eventMultiplier(next, 'raw');
+  const refineEvent = eventMultiplier(next, 'refined');
+  const goldEvent = eventMultiplier(next, 'gold');
 
-  // Passive gold trickle (with prestige logistics multiplier).
-  const goldGained = goldPerSec(next.player.level) * goldMult * seconds;
+  next.resources.wood = tickResource(next.resources.wood, seconds, rawMult * rawEvent, refineMult * refineEvent);
+  next.resources.stone = tickResource(next.resources.stone, seconds, rawMult * rawEvent, refineMult * refineEvent);
+  next.resources.iron = tickResource(next.resources.iron, seconds, rawMult * rawEvent, refineMult * refineEvent);
+
+  // Passive gold trickle (prestige logistics × event gold buff).
+  const goldGained = goldPerSec(next.player.level) * goldMult * goldEvent * seconds;
   next.player.gold += goldGained;
 
   // Track run gold for the rebirth calc.
@@ -175,10 +181,12 @@ export function refreshShield(state: GameState): GameState {
 /**
  * Award XP and handle level-ups. Returns a new state with updated
  * level / current_exp. Overflow XP carries to the next level.
+ * Applies the active xp event multiplier if any.
  */
 export function awardXp(state: GameState, xp: number): GameState {
   const next = structuredClone(state);
-  next.player.current_exp += xp;
+  const xpMult = eventMultiplier(next, 'xp');
+  next.player.current_exp += Math.floor(xp * xpMult);
   while (next.player.current_exp >= xpForLevel(next.player.level)) {
     next.player.current_exp -= xpForLevel(next.player.level);
     next.player.level += 1;

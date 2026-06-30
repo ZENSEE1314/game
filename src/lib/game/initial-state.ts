@@ -12,6 +12,7 @@ import {
   troopCapacity,
   weaponMultiplierForTier,
 } from './constants';
+import { perkMultiplier } from './prestige';
 
 /** A fresh new-player GameState. */
 export function createInitialState(): GameState {
@@ -76,6 +77,7 @@ export function createInitialState(): GameState {
       global_multiplier: 1,
       perks: {},
     },
+    active_event: null,
   };
 
   // Initialize the derived rate/capacity fields from facility levels.
@@ -151,9 +153,15 @@ export function generateOpponents(playerLevel: number): Opponent[] {
   return opponents;
 }
 
-/** Re-derive all cached rate fields (call after any facility upgrade). */
+/**
+ * Re-derive all cached rate fields (call after any facility upgrade).
+ * Applies prestige perk multipliers for vault capacity (fortified)
+ * and troop capacity (quartermaster).
+ */
 export function syncDerived(state: GameState): GameState {
   const next = structuredClone(state);
-  recomputeDerived(next);
+  const vaultMult = perkMultiplier(next, 'fortified');
+  const troopCapMult = perkMultiplier(next, 'quartermaster');
+  recomputeDerived(next, { vaultMult, troopCapMult });
   return next;
 }

@@ -160,21 +160,33 @@ export function deriveResourceState(
   };
 }
 
-/** Recompute all derived (rate/capacity) fields from facility levels. */
-export function recomputeDerived(state: {
-  resources: GameState['resources'];
-  facilities: FacilityLevels;
-  player: { secure_vault_limit: number };
-  army: { max_troop_capacity: number };
-}) {
+/**
+ * Recompute all derived (rate/capacity) fields from facility levels.
+ *
+ * Optional `mults` lets callers apply prestige perk multipliers to the
+ * vault capacity (fortified perk) and troop capacity (quartermaster
+ * perk). We keep this in constants.ts (not prestige.ts) to avoid a
+ * circular import; callers pass the multipliers in.
+ */
+export function recomputeDerived(
+  state: {
+    resources: GameState['resources'];
+    facilities: FacilityLevels;
+    player: { secure_vault_limit: number };
+    army: { max_troop_capacity: number };
+  },
+  mults?: { vaultMult?: number; troopCapMult?: number },
+) {
   state.resources.wood.raw_per_sec = rawPerSec(state.facilities.wood_gatherer);
   state.resources.stone.raw_per_sec = rawPerSec(state.facilities.stone_quarry);
   state.resources.iron.raw_per_sec = rawPerSec(state.facilities.iron_mine);
   state.resources.wood.processing_rate = processingRate(state.facilities.wood_refinery);
   state.resources.stone.processing_rate = processingRate(state.facilities.stone_refinery);
   state.resources.iron.processing_rate = processingRate(state.facilities.iron_smelter);
-  state.player.secure_vault_limit = vaultCapacity(state.facilities.vault);
-  state.army.max_troop_capacity = troopCapacity(state.facilities.barracks);
+  const vaultMult = mults?.vaultMult ?? 1;
+  const troopCapMult = mults?.troopCapMult ?? 1;
+  state.player.secure_vault_limit = Math.floor(vaultCapacity(state.facilities.vault) * vaultMult);
+  state.army.max_troop_capacity = Math.floor(troopCapacity(state.facilities.barracks) * troopCapMult);
 }
 
 /** Format a number for compact UI display (e.g. 12.3K, 4.5M). */

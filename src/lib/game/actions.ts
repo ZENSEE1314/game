@@ -37,6 +37,7 @@ import {
   trigger_peace_shield_ad,
   trigger_conscription_ad,
 } from './ads';
+import { applyWarmongerPerk } from './prestige';
 
 export interface ActionResult {
   state: GameState;
@@ -137,7 +138,7 @@ export function doUpgradeWeaponTier(state: GameState): ActionResult {
   next.resources.iron.refined_amount -= cost.refined_iron;
   next.resources.stone.refined_amount -= cost.refined_stone;
   next.gear.weapon_tier_level = currentTier + 1;
-  next.gear.weapon_multipliers = weaponMultiplierForTier(currentTier + 1);
+  next.gear.weapon_multipliers = applyWarmongerPerk(next, weaponMultiplierForTier(currentTier + 1));
   next = awardXp(next, 15);
   next.stats.total_weapon_tier_upgrades += 1;
   return { state: next, success: true };
