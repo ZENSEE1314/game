@@ -69,6 +69,7 @@ export function doUpgradeFacility(state: GameState, facility: keyof GameState['f
   next.facilities[facility] = currentLevel + 1;
   next = syncDerived(next);
   next = awardXp(next, 10);
+  next.stats.total_facility_upgrades += 1;
   return { state: next, success: true };
 }
 
@@ -100,6 +101,7 @@ export function doRecruitTroops(state: GameState, count: number): ActionResult {
   next.resources.wood.refined_amount -= totalWood;
   next.army.active_troops += count;
   next = awardXp(next, RECRUIT_XP * count);
+  next.stats.total_troops_recruited += count;
   return { state: next, success: true };
 }
 
@@ -116,6 +118,7 @@ export function doForgeWeapon(state: GameState): ActionResult {
   next.resources.iron.refined_amount -= cost.refined_iron;
   next.gear.weapon_count += 1;
   next = awardXp(next, 5);
+  next.stats.total_weapons_forged += 1;
   return { state: next, success: true };
 }
 
@@ -136,6 +139,7 @@ export function doUpgradeWeaponTier(state: GameState): ActionResult {
   next.gear.weapon_tier_level = currentTier + 1;
   next.gear.weapon_multipliers = weaponMultiplierForTier(currentTier + 1);
   next = awardXp(next, 15);
+  next.stats.total_weapon_tier_upgrades += 1;
   return { state: next, success: true };
 }
 
@@ -188,9 +192,54 @@ export function doOfflineDoubleAd(earnings: OfflineEarnings): OfflineEarnings {
 }
 
 export function doPeaceShieldAd(state: GameState): GameState {
-  return trigger_peace_shield_ad(state);
+  const next = trigger_peace_shield_ad(state);
+  next.stats.total_ads_watched += 1;
+  return next;
 }
 
 export function doConscriptionAd(state: GameState, troopsLost: number): GameState {
-  return trigger_conscription_ad(state, troopsLost);
+  const next = trigger_conscription_ad(state, troopsLost);
+  next.stats.total_ads_watched += 1;
+  return next;
 }
+
+/**
+ * Track offline-return stats (longest absence + refined produced).
+ * Called by the store after applying offline earnings.
+ */
+export function doRecordOfflineReturn(state: GameState, secondsElapsed: number, refinedProduced: number): GameState {
+  const next = structuredClone(state);
+  next.stats.longest_offline_return_seconds = Math.max(
+    next.stats.longest_offline_return_seconds,
+    secondsElapsed,
+  );
+  next.stats.total_refined_produced += refinedProduced;
+  next.stats.total_gold_earned += 0; // gold tracked separately if needed
+  return next;
+}
+
+/**
+ * Claim a completed quest's reward. Returns new state with rewards
+ * applied + quest marked claimed.
+ */
+export function doClaimQuest(state: GameState, questId: string): ActionResult {
+  const q = state.quests.find((x) => x.id === questId);
+  if (!q) return { state, success: false, reason: 'Quest not found' };
+  if (q.claimed) return { state, success: false, reason: 'Already claimed' };
+
+  // Verify completion using live stats.
+  const progress = Math.max(0, state.stats[q.tracker] - q.baseline);
+  if (progress < q.goal) return { state, success: false, reason: 'Not yet complete' };
+
+  let next = structuredClone(state);
+  const q2 = next.quests.find((x) => x.id === questId)!;
+  q2.claimed = true;
+  next.player.gold += q.reward.gold;
+  next.resources.wood.refined_amount += q.reward.refined_wood;
+  next.resources.stone.refined_amount += q.reward.refined_stone;
+  next.resources.iron.refined_amount += q.reward.refined_iron;
+  next = awardXp(next, q.reward.xp);
+  next.stats.total_gold_earned += q.reward.gold;
+  return { state: next, success: true };
+}
+

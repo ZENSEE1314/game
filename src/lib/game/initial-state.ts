@@ -51,6 +51,23 @@ export function createInitialState(): GameState {
     shield_until: null,
     is_raidable: true,
     battle_history: [],
+    stats: {
+      total_battles: 0,
+      total_victories: 0,
+      total_defeats: 0,
+      total_troops_recruited: 0,
+      total_weapons_forged: 0,
+      total_weapon_tier_upgrades: 0,
+      total_facility_upgrades: 0,
+      total_gold_earned: 0,
+      total_gold_looted: 0,
+      total_refined_produced: 0,
+      total_ads_watched: 0,
+      longest_offline_return_seconds: 0,
+    },
+    quests: [],
+    quests_rotated_at: 0,
+    achievements_unlocked: [],
   };
 
   // Initialize the derived rate/capacity fields from facility levels.

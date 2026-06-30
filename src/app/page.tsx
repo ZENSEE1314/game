@@ -6,9 +6,11 @@
  * Composes the full game shell:
  *   - useGameLoop() drives the 1s tick + offline reconciliation.
  *   - ResourceBar (sticky top).
- *   - 3-tab Tabs section (Base Camp / Barracks & Forge / Arena) with
- *     subtle Framer Motion fade transitions between tabs.
+ *   - 5-tab Tabs section (Base Camp / Barracks & Forge / Arena /
+ *     Quests / Stats) with subtle Framer Motion fade transitions.
+ *   - AmbientGlow orbs behind the main content for atmosphere.
  *   - Page-level modals (OfflineEarningsModal, BattleReportModal).
+ *   - NotificationToasts (achievement / quest-completion sonner toasts).
  *   - Sticky footer with version, ad disclaimer, and Reset Game
  *     (AlertDialog confirmed) -> resetGame().
  */
@@ -20,6 +22,10 @@ import { ResourceBar } from "@/components/game/ResourceBar";
 import { BaseCamp } from "@/components/game/BaseCamp";
 import { BarracksForge } from "@/components/game/BarracksForge";
 import { Arena } from "@/components/game/Arena";
+import { QuestsPanel } from "@/components/game/QuestsPanel";
+import { StatsPanel } from "@/components/game/StatsPanel";
+import { NotificationToasts } from "@/components/game/NotificationToasts";
+import { AmbientGlow } from "@/components/game/ui/AmbientGlow";
 import { OfflineEarningsModal } from "@/components/game/OfflineEarningsModal";
 import { BattleReportModal } from "@/components/game/BattleReportModal";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -36,13 +42,23 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { motion, AnimatePresence } from "framer-motion";
-import { TentTree, Hammer, Swords, RotateCcw, Flag } from "lucide-react";
+import {
+  TentTree,
+  Hammer,
+  Swords,
+  ScrollText,
+  BarChart3,
+  RotateCcw,
+  Flag,
+} from "lucide-react";
 import { toast } from "sonner";
 
 const TABS = [
-  { value: "base", label: "Base Camp", icon: TentTree },
-  { value: "barracks", label: "Barracks & Forge", icon: Hammer },
-  { value: "arena", label: "Arena", icon: Swords },
+  { value: "base", label: "Base Camp", short: "Camp", icon: TentTree },
+  { value: "barracks", label: "Barracks & Forge", short: "Forge", icon: Hammer },
+  { value: "arena", label: "Arena", short: "Arena", icon: Swords },
+  { value: "quests", label: "Quests", short: "Quests", icon: ScrollText },
+  { value: "stats", label: "Stats", short: "Stats", icon: BarChart3 },
 ] as const;
 
 export default function Home() {
@@ -70,6 +86,15 @@ export default function Home() {
             "radial-gradient(700px 500px at 0% 80%, rgba(20,83,45,0.10), transparent 60%)",
         }}
       />
+      {/* Animated ambient glow orbs for extra atmospheric depth */}
+      <AmbientGlow
+        tone="amber"
+        className="left-[5%] top-[15%] size-72 sm:size-96"
+      />
+      <AmbientGlow
+        tone="rose"
+        className="right-[2%] top-[55%] size-64 sm:size-80"
+      />
 
       {/* Sticky top bar */}
       <div className="relative z-20">
@@ -81,17 +106,15 @@ export default function Home() {
         <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="gap-3">
           <div className="flex justify-center">
             <TabsList className="h-auto gap-1 rounded-lg border border-stone-800/80 bg-stone-900/70 p-1 backdrop-blur">
-              {TABS.map(({ value, label, icon: Icon }) => (
+              {TABS.map(({ value, label, short, icon: Icon }) => (
                 <TabsTrigger
                   key={value}
                   value={value}
-                  className="gap-1.5 rounded-md px-3 py-2 text-xs font-medium text-stone-300 data-[state=active]:bg-amber-950/60 data-[state=active]:text-amber-200 data-[state=active]:shadow-inner sm:text-sm"
+                  className="gap-1.5 rounded-md px-2.5 py-2 text-xs font-medium text-stone-300 data-[state=active]:bg-amber-950/60 data-[state=active]:text-amber-200 data-[state=active]:shadow-inner sm:px-3 sm:text-sm"
                 >
                   <Icon className="size-4" />
                   <span className="hidden sm:inline">{label}</span>
-                  <span className="sm:hidden">
-                    {value === "base" ? "Camp" : value === "barracks" ? "Forge" : "Arena"}
-                  </span>
+                  <span className="sm:hidden">{short}</span>
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -109,6 +132,8 @@ export default function Home() {
               {tab === "base" && <BaseCamp />}
               {tab === "barracks" && <BarracksForge />}
               {tab === "arena" && <Arena />}
+              {tab === "quests" && <QuestsPanel />}
+              {tab === "stats" && <StatsPanel />}
             </motion.div>
           </AnimatePresence>
         </Tabs>
@@ -117,6 +142,9 @@ export default function Home() {
       {/* Page-level modals */}
       <OfflineEarningsModal />
       <BattleReportModal />
+
+      {/* Achievement / Quest completion toasts */}
+      <NotificationToasts />
 
       {/* Sticky footer */}
       <footer className="relative z-10 mt-auto border-t border-stone-800/80 bg-stone-950/90 backdrop-blur">

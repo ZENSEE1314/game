@@ -32,10 +32,49 @@ import {
   doOfflineDoubleAd,
   doPeaceShieldAd,
   doConscriptionAd,
+  doClaimQuest,
+  doRecordOfflineReturn,
 } from './actions';
+import { rollDailyQuests, questsExpired, checkAchievements } from './quests';
 
 interface PendingOffline {
   earnings: OfflineEarnings;
+}
+
+/**
+ * postMutate — call after ANY discrete player action mutates the state.
+ * Checks for:
+ *   - newly-unlocked achievements (stat crossed threshold)
+ *   - newly-completed quests (tracker delta reached goal, not yet claimed)
+ * Returns the (possibly updated) state + lists of newly-unlocked IDs
+ * for the UI to surface as toasts.
+ */
+function postMutate(state: GameState): {
+  state: GameState;
+  unlocked: string[];
+  completedQuests: string[];
+} {
+  let next = state;
+  const unlocked: string[] = [];
+
+  // --- Achievements ---
+  const newAch = checkAchievements(next.stats, next.achievements_unlocked);
+  if (newAch.length > 0) {
+    next = { ...next, achievements_unlocked: [...next.achievements_unlocked, ...newAch] };
+    unlocked.push(...newAch);
+  }
+
+  // --- Quest completion detection (for toast; not claiming yet) ---
+  const completedQuests: string[] = [];
+  for (const q of next.quests) {
+    if (q.claimed) continue;
+    const progress = Math.max(0, next.stats[q.tracker] - q.baseline);
+    if (progress >= q.goal) {
+      completedQuests.push(q.id);
+    }
+  }
+
+  return { state: next, unlocked, completedQuests };
 }
 
 export interface GameStore {
@@ -51,6 +90,10 @@ export interface GameStore {
   conscriptionAdUsed: boolean;
   /** Loading flag for async actions. */
   busy: boolean;
+  /** Achievement IDs unlocked in the most recent mutation (for toasts). */
+  newlyUnlocked: string[];
+  /** Quest IDs completed in the most recent mutation (for toasts). */
+  newlyCompletedQuests: string[];
 
   // --- Tick & lifecycle -------------------------------------------------
   tick: () => void;
@@ -72,9 +115,13 @@ export interface GameStore {
   activatePeaceShield: () => void;
   conscriptTroops: () => void;
 
+  // --- Quests -----------------------------------------------------------
+  claimQuest: (questId: string) => boolean;
+
   // --- Misc -------------------------------------------------------------
   refreshOpponents: () => Promise<void>;
   resetGame: () => void;
+  clearNotifications: () => void;
 }
 
 export const useGameStore = create<GameStore>()(
@@ -87,6 +134,14 @@ export const useGameStore = create<GameStore>()(
       offlineAdUsed: false,
       conscriptionAdUsed: false,
       busy: false,
+      newlyUnlocked: [],
+      newlyCompletedQuests: [],
+
+      // Helper: after any state mutation, check for newly-unlocked
+      // achievements and newly-completed quests, stamp them onto the
+      // state, and surface their IDs for UI toasts.
+      // (Defined as a closure so it can call set/get.)
+      // NOTE: called inline below via the exported function.
 
       // -----------------------------------------------------------------
       // Real-time production tick. Called every TICK_MS by useGameLoop.
@@ -100,22 +155,33 @@ export const useGameStore = create<GameStore>()(
       },
 
       // -----------------------------------------------------------------
-      // On load: compute offline earnings since last_saved_at and stage
-      // them as "pending" (player must claim, optionally 2x via ad).
+      // On load: rotate daily quests if expired, then compute offline
+      // earnings since last_saved_at and stage them as "pending".
       // -----------------------------------------------------------------
       reconcileOnLoad: () => {
         set((s) => {
           const now = Date.now();
-          const deltaSec = Math.max(0, (now - s.state.last_saved_at) / 1000);
-          if (deltaSec < 30) {
-            return { state: refreshShield(s.state), pendingOffline: null, offlineAdUsed: false };
+          let state = s.state;
+
+          // Rotate quests if it's been >24h (or never rotated).
+          if (state.quests.length === 0 || questsExpired(state.quests_rotated_at, now)) {
+            state = {
+              ...state,
+              quests: rollDailyQuests(state.stats, now),
+              quests_rotated_at: now,
+            };
           }
-          const earnings = calculate_offline_earnings(s.state, deltaSec);
+
+          const deltaSec = Math.max(0, (now - state.last_saved_at) / 1000);
+          if (deltaSec < 30) {
+            return { state: refreshShield(state), pendingOffline: null, offlineAdUsed: false };
+          }
+          const earnings = calculate_offline_earnings(state, deltaSec);
           if (earnings.seconds_elapsed === 0) {
-            return { state: refreshShield(s.state), pendingOffline: null, offlineAdUsed: false };
+            return { state: refreshShield(state), pendingOffline: null, offlineAdUsed: false };
           }
           return {
-            state: refreshShield(s.state),
+            state: refreshShield(state),
             pendingOffline: { earnings },
             offlineAdUsed: false,
           };
@@ -128,7 +194,10 @@ export const useGameStore = create<GameStore>()(
       upgradeFacility: (key) => {
         const s = get();
         const result = doUpgradeFacility(s.state, key);
-        if (result.success) set({ state: result.state });
+        if (result.success) {
+          const { state, unlocked, completedQuests } = postMutate(result.state);
+          set({ state, newlyUnlocked: unlocked, newlyCompletedQuests: completedQuests });
+        }
         return result.success;
       },
 
@@ -138,7 +207,10 @@ export const useGameStore = create<GameStore>()(
       recruitTroops: (count) => {
         const s = get();
         const result = doRecruitTroops(s.state, count);
-        if (result.success) set({ state: result.state });
+        if (result.success) {
+          const { state, unlocked, completedQuests } = postMutate(result.state);
+          set({ state, newlyUnlocked: unlocked, newlyCompletedQuests: completedQuests });
+        }
         return result.success;
       },
 
@@ -148,7 +220,10 @@ export const useGameStore = create<GameStore>()(
       forgeWeapon: () => {
         const s = get();
         const result = doForgeWeapon(s.state);
-        if (result.success) set({ state: result.state });
+        if (result.success) {
+          const { state, unlocked, completedQuests } = postMutate(result.state);
+          set({ state, newlyUnlocked: unlocked, newlyCompletedQuests: completedQuests });
+        }
         return result.success;
       },
 
@@ -158,7 +233,10 @@ export const useGameStore = create<GameStore>()(
       upgradeWeaponTier: () => {
         const s = get();
         const result = doUpgradeWeaponTier(s.state);
-        if (result.success) set({ state: result.state });
+        if (result.success) {
+          const { state, unlocked, completedQuests } = postMutate(result.state);
+          set({ state, newlyUnlocked: unlocked, newlyCompletedQuests: completedQuests });
+        }
         return result.success;
       },
 
@@ -171,8 +249,9 @@ export const useGameStore = create<GameStore>()(
         if (!result.success) {
           return { success: false, reason: result.reason };
         }
+        const { state, unlocked, completedQuests } = postMutate(result.state);
         set({
-          state: result.state,
+          state,
           opponents: result.opponents ?? s.opponents,
           lastBattle: {
             result: result.result!,
@@ -180,6 +259,8 @@ export const useGameStore = create<GameStore>()(
             troopsLost: result.result!.attacker_casualties.troops_lost,
           },
           conscriptionAdUsed: false,
+          newlyUnlocked: unlocked,
+          newlyCompletedQuests: completedQuests,
         });
         return { success: true };
       },
@@ -191,25 +272,60 @@ export const useGameStore = create<GameStore>()(
         const s = get();
         if (!s.pendingOffline) return;
         let earnings = s.pendingOffline.earnings;
+        let adUsed = false;
         if (useDoubleAd && !s.offlineAdUsed) {
           earnings = doOfflineDoubleAd(earnings);
-          set({ offlineAdUsed: true });
+          adUsed = true;
         }
-        const next = applyOfflineEarnings(s.state, earnings);
-        set({ state: next, pendingOffline: null });
+        let next = applyOfflineEarnings(s.state, earnings);
+        // Record offline-return stats.
+        const refinedProduced =
+          earnings.refined_wood_gained + earnings.refined_stone_gained + earnings.refined_iron_gained;
+        next = doRecordOfflineReturn(next, earnings.seconds_elapsed, refinedProduced);
+        if (adUsed) {
+          next.stats.total_ads_watched += 1;
+        }
+        const { state, unlocked, completedQuests } = postMutate(next);
+        set({
+          state,
+          pendingOffline: null,
+          offlineAdUsed: s.offlineAdUsed || adUsed,
+          newlyUnlocked: unlocked,
+          newlyCompletedQuests: completedQuests,
+        });
       },
 
       activatePeaceShield: () => {
         const s = get();
         const next = doPeaceShieldAd(s.state);
-        set({ state: next });
+        const { state, unlocked, completedQuests } = postMutate(next);
+        set({ state, newlyUnlocked: unlocked, newlyCompletedQuests: completedQuests });
       },
 
       conscriptTroops: () => {
         const s = get();
         if (!s.lastBattle || s.conscriptionAdUsed || s.lastBattle.troopsLost <= 0) return;
         const next = doConscriptionAd(s.state, s.lastBattle.troopsLost);
-        set({ state: next, conscriptionAdUsed: true });
+        const { state, unlocked, completedQuests } = postMutate(next);
+        set({
+          state,
+          conscriptionAdUsed: true,
+          newlyUnlocked: unlocked,
+          newlyCompletedQuests: completedQuests,
+        });
+      },
+
+      // -----------------------------------------------------------------
+      // QUESTS — claim a completed quest's reward.
+      // -----------------------------------------------------------------
+      claimQuest: (questId) => {
+        const s = get();
+        const result = doClaimQuest(s.state, questId);
+        if (result.success) {
+          const { state, unlocked, completedQuests } = postMutate(result.state);
+          set({ state, newlyUnlocked: unlocked, newlyCompletedQuests: completedQuests });
+        }
+        return result.success;
       },
 
       // -----------------------------------------------------------------
@@ -236,15 +352,25 @@ export const useGameStore = create<GameStore>()(
       },
 
       resetGame: () => {
+        const fresh = createInitialState();
+        // Roll a fresh quest set for the new campaign.
+        fresh.quests = rollDailyQuests(fresh.stats, Date.now());
+        fresh.quests_rotated_at = Date.now();
         set({
-          state: createInitialState(),
+          state: fresh,
           opponents: generateOpponents(1),
           pendingOffline: null,
           lastBattle: null,
           offlineAdUsed: false,
           conscriptionAdUsed: false,
           busy: false,
+          newlyUnlocked: [],
+          newlyCompletedQuests: [],
         });
+      },
+
+      clearNotifications: () => {
+        set({ newlyUnlocked: [], newlyCompletedQuests: [] });
       },
     }),
     {
@@ -259,6 +385,34 @@ export const useGameStore = create<GameStore>()(
         state: s.state,
         opponents: s.opponents,
       }),
+      // Merge persisted state with current defaults so NEW fields added in
+      // later versions (e.g. stats, quests, achievements_unlocked) are
+      // backfilled onto old saves instead of being undefined.
+      merge: (persisted, current) => {
+        const p = (persisted as Partial<GameStore>) ?? {};
+        const currentState = (p.state && typeof p.state === 'object') ? p.state : current.state;
+        // Deep-merge: ensure all new GameState sub-fields exist.
+        const mergedState: GameState = {
+          ...current.state,
+          ...currentState,
+          // Guarantee nested new fields are present.
+          stats: currentState.stats ?? current.state.stats,
+          quests: currentState.quests ?? current.state.quests,
+          quests_rotated_at: currentState.quests_rotated_at ?? current.state.quests_rotated_at,
+          achievements_unlocked: currentState.achievements_unlocked ?? current.state.achievements_unlocked,
+          battle_history: currentState.battle_history ?? current.state.battle_history,
+          resources: { ...current.state.resources, ...(currentState.resources ?? {}) },
+          player: { ...current.state.player, ...(currentState.player ?? {}) },
+          army: { ...current.state.army, ...(currentState.army ?? {}) },
+          gear: { ...current.state.gear, ...(currentState.gear ?? {}) },
+          facilities: { ...current.state.facilities, ...(currentState.facilities ?? {}) },
+        };
+        return {
+          ...current,
+          state: mergedState,
+          opponents: p.opponents ?? current.opponents,
+        };
+      },
     },
   ),
 );

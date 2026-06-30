@@ -103,6 +103,70 @@ export interface Opponent {
   threat: number;
 }
 
+/**
+ * Career stats — cumulative counters persisted across the whole
+ * campaign. Drives the achievements system and the stats panel.
+ */
+export interface CareerStats {
+  total_battles: number;
+  total_victories: number;
+  total_defeats: number;
+  total_troops_recruited: number;
+  total_weapons_forged: number;
+  total_weapon_tier_upgrades: number;
+  total_facility_upgrades: number;
+  total_gold_earned: number;      // from PvP loot + passive
+  total_gold_looted: number;      // from PvP only
+  total_refined_produced: number; // wood+stone+iron combined
+  total_ads_watched: number;
+  longest_offline_return_seconds: number;
+}
+
+/** Quest difficulty tier — affects reward size. */
+export type QuestTier = 'daily' | 'elite';
+
+/** A single quest instance tracked on the player state. */
+export interface Quest {
+  id: string;
+  /** Stable quest-definition key (maps to a QUEST_DEFS entry). */
+  def_key: string;
+  tier: QuestTier;
+  /** Human-readable title. */
+  title: string;
+  description: string;
+  /** Stat key from CareerStats this quest tracks. */
+  tracker: keyof CareerStats;
+  /** Starting value of the tracker when the quest was issued. */
+  baseline: number;
+  /** Target delta to complete. */
+  goal: number;
+  /** Reward granted on completion. */
+  reward: QuestReward;
+  /** Whether the reward has been claimed. */
+  claimed: boolean;
+  /** Epoch ms when the quest was issued (for expiry). */
+  issued_at: number;
+}
+
+export interface QuestReward {
+  gold: number;
+  refined_wood: number;
+  refined_stone: number;
+  refined_iron: number;
+  xp: number;
+}
+
+/** Achievement definition (static; earned-state lives on player state). */
+export interface Achievement {
+  id: string;
+  title: string;
+  description: string;
+  icon: string; // lucide icon name
+  /** Stat key + threshold to unlock. */
+  tracker: keyof CareerStats;
+  threshold: number;
+}
+
 /** The root game state object — the single source of truth. */
 export interface GameState {
   player: PlayerProfile;
@@ -121,7 +185,16 @@ export interface GameState {
   /** Derived from shield_until; cached for fast reads. */
   is_raidable: boolean;
   battle_history: BattleRecord[];
+  /** Career totals — drives achievements + stats panel. */
+  stats: CareerStats;
+  /** Active quests (rotated daily). */
+  quests: Quest[];
+  /** Epoch ms when the daily quest roster was last rotated. */
+  quests_rotated_at: number;
+  /** Set of achievement IDs already unlocked. */
+  achievements_unlocked: string[];
 }
+
 
 /** Output of the offline-earnings calculation (before applying). */
 export interface OfflineEarnings {

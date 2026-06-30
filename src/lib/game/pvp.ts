@@ -186,5 +186,68 @@ export function applyBattleToAttacker(state: GameState, result: BattleResult, op
   });
   next.battle_history = next.battle_history.slice(0, 20);
 
+  // --- Career stats -----------------------------------------------------
+  next.stats.total_battles += 1;
+  if (result.attacker_won) {
+    next.stats.total_victories += 1;
+    next.stats.total_gold_looted += result.loot.gold;
+  } else {
+    next.stats.total_defeats += 1;
+  }
+
   return next;
 }
+
+/**
+ * ============================================================
+ * COMBAT PREVIEW
+ * ============================================================
+ * Compute a deterministic "win odds" estimate for the Arena UI so
+ * players can judge an attack before committing. Returns the
+ * attacker/defender scores and a qualitative likelihood label.
+ *
+ * This does NOT add randomness — it uses the same deterministic
+ * battleScore formula as resolvePvp so the preview matches the
+ * actual outcome.
+ */
+export interface CombatPreview {
+  attacker_score: number;
+  defender_score: number;
+  /** Ratio in [0,1] — share of total score power held by attacker. */
+  attacker_share: number;
+  /** Qualitative label for the UI. */
+  verdict: 'certain' | 'likely' | 'even' | 'risky' | 'doomed';
+  verdict_label: string;
+}
+
+export function previewCombat(attacker: CombatantState, defender: CombatantState): CombatPreview {
+  const attacker_score = battleScore(attacker.active_troops, attacker.weapon_count, attacker.attack_mult);
+  const defender_score = battleScore(defender.active_troops, defender.weapon_count, defender.defense_mult);
+  const total = attacker_score + defender_score;
+  const attacker_share = total > 0 ? attacker_score / total : 0.5;
+
+  let verdict: CombatPreview['verdict'];
+  let verdict_label: string;
+  if (attacker_score === 0) {
+    verdict = 'doomed';
+    verdict_label = 'No army';
+  } else if (attacker_share >= 0.85) {
+    verdict = 'certain';
+    verdict_label = 'Certain Victory';
+  } else if (attacker_share >= 0.6) {
+    verdict = 'likely';
+    verdict_label = 'Likely Victory';
+  } else if (attacker_share >= 0.45) {
+    verdict = 'even';
+    verdict_label = 'Even Match';
+  } else if (attacker_share >= 0.2) {
+    verdict = 'risky';
+    verdict_label = 'Risky';
+  } else {
+    verdict = 'doomed';
+    verdict_label = 'Likely Defeat';
+  }
+
+  return { attacker_score, defender_score, attacker_share, verdict, verdict_label };
+}
+

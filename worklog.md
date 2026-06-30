@@ -103,3 +103,76 @@ Stage Summary:
 - Critical fix: Zustand persist `skipHydration: true` + manual `rehydrate()` resolves the SSR hydration no-op that broke offline earnings.
 - Conscription ad hook verified by code review (requires losing 4+ troops to see a restore; logic calls doConscriptionAd which restores 25% per spec).
 - Game is fully playable, lint-clean, no runtime errors. Ready for the recurring webDevReview cron.
+
+---
+Task ID: FE
+Agent: frontend-styling-expert
+Task: Build the UI for the new quests/stats/combat-preview engine features (Quests tab, Stats tab, achievement/quest-completion toasts, Arena combat-preview mini-bar) + styling polish (AmbientGlow orbs).
+
+Work Log:
+- Read worklog.md + types.ts (CareerStats / Quest / Achievement / GameState), quests.ts (DAILY_QUEST_POOL, ELITE_QUEST, questProgress, ACHIEVEMENTS), pvp.ts (previewCombat, projectPlayer, projectOpponent, CombatPreview), store.ts (newlyUnlocked / newlyCompletedQuests / claimQuest / clearNotifications + postMutate), constants.ts (formatNumber, LOOT_RATE), Arena.tsx, page.tsx, ResourceBar.tsx, StatChip.tsx, ResourceIcon.tsx, BaseCamp.tsx to align with the existing dark-amber/emerald/rose design language.
+- Created `src/components/game/ui/AmbientGlow.tsx` — `'use client'` decorative component. Renders absolutely-positioned `blur-3xl` radial-gradient orbs that pulse opacity 0.3 -> 0.6 -> 0.3 over 4s (Framer Motion, infinite). Tone presets: amber (forge-fire) / emerald (success) / rose (danger). pointer-events-none so it never blocks UI.
+- Created `src/components/game/NotificationToasts.tsx` — `'use client'`. Watches `newlyUnlocked` (achievement IDs) and `newlyCompletedQuests` (quest IDs) on the store via `useEffect`. For each new ID, fires `toast.success` with a Lucide icon + description: achievements -> "Achievement Unlocked: {title} — {description}" with Trophy icon; quests -> "Quest Complete: {title} — claim your reward in the Quests tab." with ScrollText icon. Maintains ref-based dedupe sets (capped at 100) so the same ID never re-fires; defers `clearNotifications()` via `setTimeout(...,0)` to avoid setState-during-render. Renders null.
+- Created `src/components/game/QuestsPanel.tsx` — `'use client'`. Section header "Quests" with a live countdown badge (`Resets in Xh Ym`, re-rendered every 30s via setInterval) computed from `state.quests_rotated_at + 24h`. Elite quest rendered at the TOP in a rose/amber gradient-tinted Card labeled "ELITE" (Star icon). Daily quests in a 2-col responsive grid. Each QuestCard shows title + description, a Progress bar (emerald when complete, amber otherwise, amber-glow for elite), `current/goal` mono numbers (via `questProgress(q, state.stats)`), and a reward-preview row using ResourceIcon + Coins + Sparkles badges (gold/wood/stone/iron/xp). Claim button (emerald, CheckCircle2) shown only when `complete && !claimed`; otherwise "Claimed" badge (Lock) or live `X%` badge. Claim -> `claimQuest(id)` + sonner success toast listing the reward parts.
+- Created `src/components/game/StatsPanel.tsx` — `'use client'`. Section "Career Statistics": 2-col (mobile) / 3-col (desktop) grid of 12 StatTiles (battles, victories + win-rate, defeats, troops recruited, weapons forged, tier upgrades, facility upgrades, gold looted, refined produced, ads watched, longest offline return formatted Xh Ym, achievements count) — each tile = tone-aware icon badge + label + big mono tabular-nums number + optional sub-text. Section "Achievements": responsive grid (1/2/3 cols) of 16 achievement cards. Unlocked cards use a full-color amber gradient with the mapped Lucide icon (ICON_MAP keyed by `a.icon` string: Swords/Shield/Skull/Trophy/Medal/Crown/Users/Flag/Hammer/Anvil/TentTree/Castle/Coins/Gem/Zap/Sparkles) and an emerald "Unlocked" badge. Locked cards are dimmed (opacity-70, grayscale icon) with progress text "X / Y" and a thin Progress bar.
+- Modified `src/components/game/Arena.tsx` — added a `BattleOddsBar` sub-component rendered in each OpponentCard between the troops+weapons row and the loot row. Computes `previewCombat(projectPlayer(state, true), projectOpponent(opp))` and renders: a "Battle Odds" header with a color-coded verdict Badge (certain/likely = emerald, even = amber, risky/doomed = rose), a 2px-tall split bar (emerald attacker vs rose defender by `attacker_share`), and a mono "You {attacker_score} vs Them {defender_score}" line. OpponentCard now subscribes to `state` so the preview updates live as the player's army/gear change. Also polished the loot row per VLM feedback: bumped text from text-[10px] to text-[11px], enlarged the loot icons (size-3.5/size-4), used `gap-2` for breathing room, kept `flex-wrap` to prevent truncation. Preserved ShieldPanel / Scout button / BattleHistory exactly as-is.
+- Modified `src/app/page.tsx` — extended TABS to 5 entries (Base Camp / Barracks & Forge / Arena / Quests / Stats) with icons TentTree / Hammer / Swords / ScrollText / BarChart3, and added a `short` field per tab for mobile labels (Camp / Forge / Arena / Quests / Stats). Tightened mobile tab padding (px-2.5) so all 5 fit at 375px. Rendered `<QuestsPanel />` and `<StatsPanel />` in the tab content. Mounted `<NotificationToasts />` after the modals. Added two `<AmbientGlow />` orbs (amber top-left, rose bottom-right, responsive size) behind the main content (z-0) for extra atmosphere. Updated the file header comment to reflect the 5-tab + ambient-glow + notification-toasts shell.
+- Ran `bun run lint` — passed clean (eslint-config-next permissive ruleset, no errors).
+- Verified via `curl http://localhost:3000/` — HTTP 200, and the rendered HTML contains all five tab labels (Camp, Forge, Arena, Quests, Stats). Inspected the last 40 lines of dev.log — only successful compiles + 200 responses, no runtime/TypeScript errors.
+
+Stage Summary:
+- 4 files created, 2 files modified:
+  - NEW `src/components/game/ui/AmbientGlow.tsx`
+  - NEW `src/components/game/NotificationToasts.tsx`
+  - NEW `src/components/game/QuestsPanel.tsx`
+  - NEW `src/components/game/StatsPanel.tsx`
+  - MODIFIED `src/components/game/Arena.tsx` (combat-preview BattleOddsBar + loot-row polish)
+  - MODIFIED `src/app/page.tsx` (5 tabs + NotificationToasts + AmbientGlow)
+- Design language honored end-to-end: dark stone-950 base, amber/emerald/rose accents, mono tabular-nums for every numeric value, Lucide icons throughout, no indigo/blue. Elite quest card uses a distinctive rose-tinted amber gradient; achievement unlocked cards use the same family. Mobile responsive: tab labels collapse to short labels, grids collapse to fewer columns, loot row wraps.
+- Combat preview uses the same deterministic `battleScore` formula as `resolvePvp`, so the preview verdict always matches the actual battle outcome (no surprises for the player).
+- NotificationToasts dedupes via ref sets so the same achievement/quest is never re-toasted across renders; `clearNotifications()` is called after firing to clear the store flags.
+- Lint clean, dev server HTTP 200, no runtime errors. Game is fully playable with all 5 tabs and the new quest/stats/combat-preview features live.
+
+---
+Task ID: 6 (webDevReview round 1)
+Agent: Main Architect (QA + Features + Polish)
+Task: Recurring webDevReview — QA the live game, fix bugs, add new features (quests, achievements, stats, combat preview) and styling polish.
+
+## Current Project Status Assessment
+The game was in a stable, fully-playable state entering this round (core engine + 3-tab UI verified in Task 5). QA via agent-browser + VLM (glm-4.6v) on desktop + mobile screenshots confirmed: no runtime errors, all core flows (upgrades, recruit, forge, PvP, peace shield, offline 2x) working. VLM identified styling polish opportunities (loot readability, shield alert prominence, opponent card hierarchy) but no blocking bugs.
+
+## Completed Modifications This Round
+
+### 1. NEW ENGINE: Career Stats + Quests + Achievements
+- `src/lib/game/types.ts` — added `CareerStats` (12 cumulative counters), `Quest`, `QuestTier`, `QuestReward`, `Achievement` interfaces; extended `GameState` with `stats`, `quests`, `quests_rotated_at`, `achievements_unlocked`.
+- `src/lib/game/quests.ts` (NEW) — `DAILY_QUEST_POOL` (6 quest defs), `ELITE_QUEST`, `rollDailyQuests()` (draws 3 daily + 1 elite, baselines tracked against current stats), `questsExpired()`, `questProgress()`, `ACHIEVEMENTS` (16 achievements across battles/victories/recruiting/forging/building/looting/ads/refining), `checkAchievements()`.
+- `src/lib/game/pvp.ts` — added `previewCombat()` + `CombatPreview` interface (deterministic win-odds: certain/likely/even/risky/doomed verdicts with attacker_share ratio). Added career-stat tracking to `applyBattleToAttacker` (total_battles, victories, defeats, gold_looted).
+- `src/lib/game/actions.ts` — added stat tracking to all actions (facility_upgrades, troops_recruited, weapons_forged, weapon_tier_upgrades); ad hooks now increment `total_ads_watched`; added `doRecordOfflineReturn` (longest_offline_return_seconds + total_refined_produced) and `doClaimQuest` (verifies completion, grants reward, marks claimed).
+- `src/lib/game/store.ts` — added `postMutate()` helper (checks achievement unlocks + quest completions after every mutation, surfaces IDs for toasts); added `claimQuest()`, `clearNotifications()`, `newlyUnlocked` + `newlyCompletedQuests` fields; quest rotation in `reconcileOnLoad` (24h expiry); **CRITICAL FIX: added `merge` function to persist config** to backfill new schema fields (stats/quests/achievements_unlocked) onto old persisted saves — fixes a `Cannot read properties of undefined (reading 'length')` runtime error that crashed the Quests tab for returning players.
+- `src/lib/game/initial-state.ts` — `createInitialState()` now seeds `stats` (all zeros), `quests: []`, `quests_rotated_at: 0`, `achievements_unlocked: []`.
+
+### 2. NEW UI: Quests, Stats, Combat Preview, Notifications (Task FE by frontend-styling-expert subagent)
+- `src/components/game/QuestsPanel.tsx` (NEW) — Elite quest (rose/amber gradient) + daily quests grid with progress bars, reward previews, claim buttons, 24h rotation countdown.
+- `src/components/game/StatsPanel.tsx` (NEW) — Career stats tiles (12 metrics incl. win rate + longest-offline formatting) + 16-achievement grid (unlocked = full-color with Lucide icon map; locked = dimmed with X/Y progress).
+- `src/components/game/NotificationToasts.tsx` (NEW) — watches `newlyUnlocked`/`newlyCompletedQuests`, fires sonner toasts with ref-based dedupe, then clears.
+- `src/components/game/ui/AmbientGlow.tsx` (NEW) — decorative Framer-Motion pulsing radial-gradient orbs for atmosphere.
+- `src/components/game/Arena.tsx` (modified) — added `BattleOddsBar` (verdict badge + emerald/rose split bar + You/Them scores) to each opponent card; polished loot row readability (text-[11px], larger icons, gap-2).
+- `src/app/page.tsx` (modified) — extended to 5 tabs (Base Camp / Barracks & Forge / Arena / Quests / Stats) with ScrollText + BarChart3 icons + mobile short labels; mounted QuestsPanel, StatsPanel, NotificationToasts, 2x AmbientGlow orbs.
+
+## Verification Results
+- `bun run lint` — clean (0 errors).
+- agent-browser QA: all 5 tabs render; Quests panel shows Elite + 3 daily quests with progress; Stats panel shows 12 career stats + 16 achievements with locked/unlocked states.
+- End-to-end flow verified: attacked opponent → "First Blood" achievement unlocked (toast fired) → Stats panel shows "1 / 16" achievements, "Battles Fought: 1", "First Blood: UNLOCKED" → Quests panel "Sponsor's Friend" progressed to 50% after activating Peace Shield ad.
+- VLM (glm-4.6v) confirmed: combat preview "clear and readable, verdict color-coding makes sense, no visual issues"; mobile 5-tab layout "all tabs fit without overflow, no layout issues".
+- Dev log: all 200 responses, no 500s, no runtime errors after the merge-fix.
+
+## Unresolved Issues / Risks
+- None blocking. The schema migration `merge` handles forward-compatibility for future field additions.
+- Minor: quest progress toasts fire on every mutation that completes a quest (deduped by ID within a session, but a quest could re-surface its completion toast if stats oscillate — unlikely given monotonic counters).
+
+## Priority Recommendations for Next Phase
+1. **Server-side persistence** — migrate from localStorage to Prisma/SQLite so progress survives cross-device/clear-cache. The API routes already exist; wire the store to sync via API.
+2. **Leaderboard** — given career stats + battle history exist, a global/NPC leaderboard tab would add retention.
+3. **More quest variety** — add weekly quests, chain quests, and quest-line story arcs.
+4. **Sound design** — ambient forge/PvP sound effects (currently visual-only).
+5. **Balance tuning** — the combat preview makes it obvious when attacks are doomed; consider adding a "scout intel" cost or fog-of-war to the preview for higher-threat opponents.

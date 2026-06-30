@@ -19,6 +19,7 @@ import * as React from "react";
 import { useGameStore } from "@/lib/game/store";
 import { formatNumber, LOOT_RATE } from "@/lib/game/constants";
 import { shieldRemainingLabel } from "@/lib/game/ads";
+import { previewCombat, projectPlayer, projectOpponent, type CombatPreview } from "@/lib/game/pvp";
 import type { Opponent, BattleRecord } from "@/lib/game/types";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,64 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+
+/** Verdict label color classes. */
+function verdictBadgeClass(verdict: CombatPreview["verdict"]): string {
+  switch (verdict) {
+    case "certain":
+    case "likely":
+      return "border-emerald-700/50 bg-emerald-950/40 text-emerald-300";
+    case "even":
+      return "border-amber-700/50 bg-amber-950/40 text-amber-300";
+    case "risky":
+    case "doomed":
+      return "border-rose-700/50 bg-rose-950/40 text-rose-300";
+  }
+}
+
+/** Compact "Battle Odds" mini-bar: attacker vs defender split. */
+function BattleOddsBar({ preview }: { preview: CombatPreview }) {
+  const attackerPct = Math.round(preview.attacker_share * 100);
+  const defenderPct = 100 - attackerPct;
+  return (
+    <div className="mt-1.5 rounded-md border border-stone-800/70 bg-stone-950/40 p-1.5">
+      <div className="mb-1 flex items-center justify-between gap-1.5">
+        <span className="text-[10px] font-medium uppercase tracking-wider text-stone-500">
+          Battle Odds
+        </span>
+        <Badge
+          variant="outline"
+          className={cn(
+            "gap-1 px-1.5 py-0 text-[10px] font-semibold",
+            verdictBadgeClass(preview.verdict),
+          )}
+        >
+          {preview.verdict_label}
+        </Badge>
+      </div>
+      {/* Split bar: emerald attacker vs rose defender */}
+      <div className="flex h-2 w-full overflow-hidden rounded-full bg-stone-900">
+        <div
+          className="h-full bg-emerald-500/80 transition-all"
+          style={{ width: `${attackerPct}%` }}
+        />
+        <div
+          className="h-full bg-rose-500/80 transition-all"
+          style={{ width: `${defenderPct}%` }}
+        />
+      </div>
+      <div className="mt-1 flex items-center justify-between gap-1.5 font-mono text-[10px] tabular-nums">
+        <span className="text-emerald-300">
+          You {formatNumber(preview.attacker_score)}
+        </span>
+        <span className="text-stone-500">vs</span>
+        <span className="text-rose-300">
+          Them {formatNumber(preview.defender_score)}
+        </span>
+      </div>
+    </div>
+  );
+}
 
 function ThreatStars({ threat }: { threat: number }) {
   return (
@@ -133,10 +192,14 @@ function ShieldPanel() {
 
 function OpponentCard({ opp }: { opp: Opponent }) {
   const attack = useGameStore((s) => s.attackOpponent);
+  const state = useGameStore((s) => s.state);
 
   const potentialGold = Math.floor(opp.player.gold * LOOT_RATE);
   const potentialWood = Math.floor(opp.resources.wood.refined_amount * LOOT_RATE);
   const potentialIron = Math.floor(opp.resources.iron.refined_amount * LOOT_RATE);
+
+  // Combat preview — deterministic, same formula as resolvePvp.
+  const preview = previewCombat(projectPlayer(state, true), projectOpponent(opp));
 
   const handleAttack = () => {
     const r = attack(opp.id);
@@ -205,19 +268,22 @@ function OpponentCard({ opp }: { opp: Opponent }) {
             </Badge>
           </div>
 
-          {/* Potential loot */}
-          <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px] text-stone-500">
-            <span className="uppercase tracking-wider">Loot (10%):</span>
-            <span className="inline-flex items-center gap-0.5 font-mono text-amber-300 tabular-nums">
-              <Coins className="size-3" />
+          {/* Battle odds mini-bar (combat preview) */}
+          <BattleOddsBar preview={preview} />
+
+          {/* Potential loot (flex-wrap, slightly larger per VLM feedback) */}
+          <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-stone-400">
+            <span className="uppercase tracking-wider text-stone-500">Loot (10%):</span>
+            <span className="inline-flex items-center gap-1 font-mono text-amber-300 tabular-nums">
+              <Coins className="size-3.5" />
               {formatNumber(potentialGold)}
             </span>
-            <span className="inline-flex items-center gap-0.5 font-mono text-emerald-300 tabular-nums">
-              <ResourceIcon resource="wood" className="size-3.5" />
+            <span className="inline-flex items-center gap-1 font-mono text-emerald-300 tabular-nums">
+              <ResourceIcon resource="wood" className="size-4" />
               {formatNumber(potentialWood)}
             </span>
-            <span className="inline-flex items-center gap-0.5 font-mono text-amber-300 tabular-nums">
-              <ResourceIcon resource="iron" className="size-3.5" />
+            <span className="inline-flex items-center gap-1 font-mono text-amber-300 tabular-nums">
+              <ResourceIcon resource="iron" className="size-4" />
               {formatNumber(potentialIron)}
             </span>
           </div>
