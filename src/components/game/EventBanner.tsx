@@ -12,6 +12,7 @@
 
 import { useGameStore } from "@/lib/game/store";
 import { eventRemainingLabel } from "@/lib/game/events";
+import { playSound } from "@/lib/game/sound";
 import type { GameEvent } from "@/lib/game/types";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -70,6 +71,16 @@ function estimatedDurationMs(buffType: GameEvent["buff_type"]): number {
 
 export function EventBanner() {
   const activeEvent = useGameStore((s) => s.state.active_event);
+  const prevEventKey = React.useRef<string | null>(null);
+
+  // Play a sound when a NEW event spawns (def_key changes from null/different).
+  React.useEffect(() => {
+    const currentKey = activeEvent?.def_key ?? null;
+    if (currentKey && currentKey !== prevEventKey.current) {
+      playSound("event");
+    }
+    prevEventKey.current = currentKey;
+  }, [activeEvent?.def_key]);
 
   return (
     <AnimatePresence>

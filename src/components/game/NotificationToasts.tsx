@@ -14,6 +14,7 @@
 import * as React from "react";
 import { useGameStore } from "@/lib/game/store";
 import { ACHIEVEMENTS } from "@/lib/game/quests";
+import { playSound } from "@/lib/game/sound";
 import { toast } from "sonner";
 import { Trophy, ScrollText } from "lucide-react";
 
@@ -37,6 +38,7 @@ export function NotificationToasts() {
       if (!ach) continue;
       firedAchRef.current.add(id);
       anyFired = true;
+      playSound("achievement");
       toast.success("Achievement Unlocked", {
         description: `${ach.title} — ${ach.description}`,
         icon: <Trophy className="size-4" />,
@@ -50,6 +52,7 @@ export function NotificationToasts() {
       if (!q) continue;
       firedQuestRef.current.add(id);
       anyFired = true;
+      playSound("quest");
       const tierLabel = q.tier === "elite" ? "Elite Quest" : "Quest";
       toast.success(`${tierLabel} Complete`, {
         description: `${q.title} — claim your reward in the Quests tab.`,

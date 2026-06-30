@@ -39,6 +39,7 @@ import {
 import { rollDailyQuests, questsExpired, checkAchievements } from './quests';
 import { performRebirth, allocatePerk, previewPrestigeGain, canRebirth, applyWarmongerPerk } from './prestige';
 import { reconcileEvent } from './events';
+import { playSound } from './sound';
 
 interface PendingOffline {
   earnings: OfflineEarnings;
@@ -221,6 +222,9 @@ export const useGameStore = create<GameStore>()(
         if (result.success) {
           const { state, unlocked, completedQuests } = postMutate(result.state);
           set({ state, newlyUnlocked: unlocked, newlyCompletedQuests: completedQuests });
+          playSound('upgrade');
+        } else {
+          playSound('error');
         }
         return result.success;
       },
@@ -234,6 +238,9 @@ export const useGameStore = create<GameStore>()(
         if (result.success) {
           const { state, unlocked, completedQuests } = postMutate(result.state);
           set({ state, newlyUnlocked: unlocked, newlyCompletedQuests: completedQuests });
+          playSound('recruit');
+        } else {
+          playSound('error');
         }
         return result.success;
       },
@@ -247,6 +254,9 @@ export const useGameStore = create<GameStore>()(
         if (result.success) {
           const { state, unlocked, completedQuests } = postMutate(result.state);
           set({ state, newlyUnlocked: unlocked, newlyCompletedQuests: completedQuests });
+          playSound('forge');
+        } else {
+          playSound('error');
         }
         return result.success;
       },
@@ -260,6 +270,9 @@ export const useGameStore = create<GameStore>()(
         if (result.success) {
           const { state, unlocked, completedQuests } = postMutate(result.state);
           set({ state, newlyUnlocked: unlocked, newlyCompletedQuests: completedQuests });
+          playSound('upgrade');
+        } else {
+          playSound('error');
         }
         return result.success;
       },
@@ -271,6 +284,7 @@ export const useGameStore = create<GameStore>()(
         const s = get();
         const result = doAttack(s.state, opponentId, s.opponents);
         if (!result.success) {
+          playSound('error');
           return { success: false, reason: result.reason };
         }
         const { state, unlocked, completedQuests } = postMutate(result.state);
@@ -286,6 +300,11 @@ export const useGameStore = create<GameStore>()(
           newlyUnlocked: unlocked,
           newlyCompletedQuests: completedQuests,
         });
+        playSound('attack');
+        setTimeout(() => playSound(result.result!.attacker_won ? 'victory' : 'defeat'), 200);
+        if (result.result!.attacker_won && result.result!.loot.gold > 0) {
+          setTimeout(() => playSound('loot'), 500);
+        }
         return { success: true };
       },
 
@@ -317,6 +336,7 @@ export const useGameStore = create<GameStore>()(
           newlyUnlocked: unlocked,
           newlyCompletedQuests: completedQuests,
         });
+        playSound(adUsed ? 'ad' : 'loot');
       },
 
       activatePeaceShield: () => {
@@ -324,6 +344,7 @@ export const useGameStore = create<GameStore>()(
         const next = doPeaceShieldAd(s.state);
         const { state, unlocked, completedQuests } = postMutate(next);
         set({ state, newlyUnlocked: unlocked, newlyCompletedQuests: completedQuests });
+        playSound('shield');
       },
 
       conscriptTroops: () => {
@@ -337,6 +358,7 @@ export const useGameStore = create<GameStore>()(
           newlyUnlocked: unlocked,
           newlyCompletedQuests: completedQuests,
         });
+        playSound('recruit');
       },
 
       // -----------------------------------------------------------------
@@ -348,6 +370,9 @@ export const useGameStore = create<GameStore>()(
         if (result.success) {
           const { state, unlocked, completedQuests } = postMutate(result.state);
           set({ state, newlyUnlocked: unlocked, newlyCompletedQuests: completedQuests });
+          playSound('quest');
+        } else {
+          playSound('error');
         }
         return result.success;
       },
@@ -358,6 +383,7 @@ export const useGameStore = create<GameStore>()(
       rebirth: () => {
         const s = get();
         if (!canRebirth(s.state)) {
+          playSound('error');
           return { success: false, reason: 'Not enough gold earned this run' };
         }
         const pointsGained = previewPrestigeGain(s.state.prestige.current_run_gold);

@@ -16,6 +16,7 @@ import { useGameStore } from "@/lib/game/store";
 import { formatNumber, xpForLevel } from "@/lib/game/constants";
 import { shieldRemainingLabel } from "@/lib/game/ads";
 import { StatChip } from "@/components/game/ui/StatChip";
+import { SoundToggle } from "@/components/game/SoundToggle";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -147,6 +148,7 @@ export function ResourceBar() {
             <Lock className="size-3" />
             <span className="text-[11px]">Vault {formatNumber(player.secure_vault_limit)}</span>
           </Badge>
+          <SoundToggle />
         </div>
       </div>
     </header>
