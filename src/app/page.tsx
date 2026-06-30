@@ -23,9 +23,11 @@ import { useGameStore } from "@/lib/game/store";
 import { ResourceBar } from "@/components/game/ResourceBar";
 import { EventBanner } from "@/components/game/EventBanner";
 import { HelpGuide } from "@/components/game/HelpGuide";
+import { TapNodesPanel } from "@/components/game/TapNodesPanel";
 import { BaseCamp } from "@/components/game/BaseCamp";
 import { BarracksForge } from "@/components/game/BarracksForge";
 import { Arena } from "@/components/game/Arena";
+import { CaveHuntingPanel } from "@/components/game/CaveHuntingPanel";
 import { QuestsPanel } from "@/components/game/QuestsPanel";
 import { StatsPanel } from "@/components/game/StatsPanel";
 import { LeaderboardPanel } from "@/components/game/LeaderboardPanel";
@@ -58,13 +60,17 @@ import {
   Sparkles,
   RotateCcw,
   Flag,
+  TreePine,
+  Skull,
 } from "lucide-react";
 import { toast } from "sonner";
 
 const TABS = [
+  { value: "gather", label: "Gathering", short: "Gather", icon: TreePine },
   { value: "base", label: "Base Camp", short: "Camp", icon: TentTree },
   { value: "barracks", label: "Barracks & Forge", short: "Forge", icon: Hammer },
   { value: "arena", label: "Arena", short: "Arena", icon: Swords },
+  { value: "cave", label: "Cave Hunt", short: "Cave", icon: Skull },
   { value: "quests", label: "Quests", short: "Quests", icon: ScrollText },
   { value: "stats", label: "Stats", short: "Stats", icon: BarChart3 },
   { value: "leaderboard", label: "Leaderboard", short: "Ranks", icon: Trophy },
@@ -74,7 +80,7 @@ const TABS = [
 export default function Home() {
   useGameLoop();
   const resetGame = useGameStore((s) => s.resetGame);
-  const [tab, setTab] = React.useState<(typeof TABS)[number]["value"]>("base");
+  const [tab, setTab] = React.useState<(typeof TABS)[number]["value"]>("gather");
 
   const handleReset = () => {
     resetGame();
@@ -149,9 +155,11 @@ export default function Home() {
               transition={{ duration: 0.15, ease: "easeOut" }}
               className="mt-4"
             >
+              {tab === "gather" && <TapNodesPanel />}
               {tab === "base" && <BaseCamp />}
               {tab === "barracks" && <BarracksForge />}
               {tab === "arena" && <Arena />}
+              {tab === "cave" && <CaveHuntingPanel />}
               {tab === "quests" && <QuestsPanel />}
               {tab === "stats" && <StatsPanel />}
               {tab === "leaderboard" && <LeaderboardPanel />}

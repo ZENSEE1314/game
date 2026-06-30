@@ -40,6 +40,18 @@ import { rollDailyQuests, questsExpired, checkAchievements } from './quests';
 import { performRebirth, allocatePerk, previewPrestigeGain, canRebirth, applyWarmongerPerk } from './prestige';
 import { reconcileEvent } from './events';
 import { playSound } from './sound';
+import {
+  reconcileStamina,
+  consumeStamina,
+  refillStamina,
+  tapNode,
+  upgradeTool,
+} from './stamina-tap';
+import {
+  reconcileCave,
+  performCaveHunt,
+  sellItem,
+} from './cave-market';
 
 interface PendingOffline {
   earnings: OfflineEarnings;
@@ -126,6 +138,13 @@ export interface GameStore {
   rebirth: () => { success: boolean; pointsGained?: number; reason?: string };
   allocatePrestigePerk: (perkId: string) => boolean;
 
+  // --- Arena Stamina + Tap Nodes + Cave + Market ------------------------
+  refillStaminaAd: () => void;
+  tapResourceNode: (node: 'tree' | 'mine' | 'farm') => boolean;
+  upgradeToolLevel: (tool: 'axe' | 'pickaxe' | 'sickle') => boolean;
+  huntCave: (caveId: string) => { success: boolean; reason?: string };
+  sellInventoryItem: (itemId: string, quantity: number) => boolean;
+
   // --- Misc -------------------------------------------------------------
   refreshOpponents: () => Promise<void>;
   resetGame: () => void;
@@ -160,6 +179,10 @@ export const useGameStore = create<GameStore>()(
           next = refreshShield(next);
           // Reconcile events (expiry check + small spawn chance) ~once/sec.
           next = reconcileEvent(next, Date.now());
+          // Reconcile arena stamina regeneration.
+          next = reconcileStamina(next, Date.now());
+          // Reconcile cave daily entry reset.
+          next = reconcileCave(next, Date.now());
           return { state: next };
         });
       },
@@ -282,7 +305,13 @@ export const useGameStore = create<GameStore>()(
       // -----------------------------------------------------------------
       attackOpponent: (opponentId) => {
         const s = get();
-        const result = doAttack(s.state, opponentId, s.opponents);
+        // Check stamina first.
+        const staminaCheck = consumeStamina(s.state);
+        if (!staminaCheck.ok) {
+          playSound('error');
+          return { success: false, reason: 'No arena stamina left! Wait for it to regenerate or watch an ad.' };
+        }
+        const result = doAttack(staminaCheck.state, opponentId, s.opponents);
         if (!result.success) {
           playSound('error');
           return { success: false, reason: result.reason };
@@ -427,6 +456,63 @@ export const useGameStore = create<GameStore>()(
       },
 
       // -----------------------------------------------------------------
+      // ARENA STAMINA + TAP NODES + CAVE + MARKET
+      // -----------------------------------------------------------------
+      refillStaminaAd: () => {
+        const s = get();
+        const next = refillStamina(s.state);
+        next.stats.total_ads_watched += 1;
+        set({ state: next });
+        playSound('ad');
+      },
+
+      tapResourceNode: (node) => {
+        const s = get();
+        const result = tapNode(s.state, node, Date.now());
+        if (result.ok) {
+          set({ state: result.state });
+          playSound('loot');
+        }
+        return result.ok;
+      },
+
+      upgradeToolLevel: (tool) => {
+        const s = get();
+        const result = upgradeTool(s.state, tool);
+        if (result.success) {
+          set({ state: result.state });
+          playSound('upgrade');
+        } else {
+          playSound('error');
+        }
+        return result.success;
+      },
+
+      huntCave: (caveId) => {
+        const s = get();
+        const result = performCaveHunt(s.state, caveId, Date.now());
+        if (!result.ok) {
+          playSound('error');
+          return { success: false, reason: result.reason };
+        }
+        set({ state: result.state });
+        playSound(result.result.success ? 'loot' : 'error');
+        return { success: true };
+      },
+
+      sellInventoryItem: (itemId, quantity) => {
+        const s = get();
+        const result = sellItem(s.state, itemId, quantity);
+        if (result.ok) {
+          set({ state: result.state });
+          playSound('loot');
+        } else {
+          playSound('error');
+        }
+        return result.ok;
+      },
+
+      // -----------------------------------------------------------------
       // MISC
       // -----------------------------------------------------------------
       refreshOpponents: async () => {
@@ -501,6 +587,10 @@ export const useGameStore = create<GameStore>()(
           battle_history: currentState.battle_history ?? current.state.battle_history,
           prestige: currentState.prestige ?? current.state.prestige,
           active_event: currentState.active_event ?? current.state.active_event,
+          arena_stamina: currentState.arena_stamina ?? current.state.arena_stamina,
+          tap_nodes: currentState.tap_nodes ?? current.state.tap_nodes,
+          cave: currentState.cave ?? current.state.cave,
+          inventory: currentState.inventory ?? current.state.inventory,
           resources: { ...current.state.resources, ...(currentState.resources ?? {}) },
           player: { ...current.state.player, ...(currentState.player ?? {}) },
           army: { ...current.state.army, ...(currentState.army ?? {}) },

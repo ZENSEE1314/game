@@ -191,6 +191,7 @@ export function recomputeDerived(
 
 /** Format a number for compact UI display (e.g. 12.3K, 4.5M). */
 export function formatNumber(n: number): string {
+  if (!isFinite(n) || isNaN(n)) return '0';
   if (n < 1000) return Math.floor(n).toString();
   if (n < 1_000_000) return (n / 1000).toFixed(1) + 'K';
   if (n < 1_000_000_000) return (n / 1_000_000).toFixed(2) + 'M';

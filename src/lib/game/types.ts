@@ -246,6 +246,104 @@ export interface GameState {
   prestige: PrestigeState;
   /** Active limited-time event (or null if none). */
   active_event: GameEvent | null;
+  /** Arena stamina — limits PvP attacks. +1 every 3h, max 5. */
+  arena_stamina: ArenaStamina;
+  /** Tap-to-collect resource nodes (tree/mine/farm) + tool levels. */
+  tap_nodes: TapNodesState;
+  /** Cave hunting system. */
+  cave: CaveState;
+  /** Monster-item inventory + market. */
+  inventory: InventoryState;
+}
+
+/** Arena PvP stamina. Regenerates 1 per 3 hours, max 5. */
+export interface ArenaStamina {
+  current: number;
+  max: number;
+  /** Epoch ms when the next stamina point regenerates. */
+  next_regenerate_at: number;
+  /** Regeneration interval in ms (3 hours). */
+  regenerate_interval_ms: number;
+}
+
+/** Tap-to-collect nodes + their tool upgrade levels. */
+export interface TapNodesState {
+  /** Axe level (boosts wood per tap). */
+  axe_level: number;
+  /** Pickaxe level (boosts stone+iron per tap). */
+  pickaxe_level: number;
+  /** Sickle level (boosts gold per tap). */
+  sickle_level: number;
+  /** Per-node last-tapped timestamps for cooldown (ms). */
+  cooldowns: {
+    tree: number;
+    mine: number;
+    farm: number;
+  };
+}
+
+/** Cave hunting state. */
+export interface CaveState {
+  /** Number of cave entries used today (resets daily). Max 3. */
+  entries_today: number;
+  /** Epoch ms when the daily entry count resets. */
+  next_reset_at: number;
+  /** Per-cave-id last-entered timestamp for cooldown tracking. */
+  last_entered: Record<string, number>;
+}
+
+/** A cave definition (static). */
+export interface CaveDef {
+  id: string;
+  name: string;
+  avatar: string;
+  description: string;
+  /** Tier 1=easy, 3=hard. */
+  tier: number;
+  /** Cooldown in ms before you can re-enter this cave. */
+  cooldown_ms: number;
+  /** Base success chance 0-1 (modified by player level). */
+  base_success: number;
+  /** Possible loot drops. */
+  loot_table: CaveLootEntry[];
+}
+
+export interface CaveLootEntry {
+  item_id: string;
+  /** Drop weight (relative). */
+  weight: number;
+  /** Min/max quantity. */
+  min: number;
+  max: number;
+}
+
+/** Result of a cave hunt. */
+export interface CaveHuntResult {
+  success: boolean;
+  item_id: string | null;
+  item_name: string | null;
+  quantity: number;
+  rarity: ItemRarity;
+}
+
+/** Monster item rarity. */
+export type ItemRarity = 'common' | 'uncommon' | 'rare' | 'epic';
+
+/** A monster-item definition (static). */
+export interface MonsterItemDef {
+  id: string;
+  name: string;
+  avatar: string;
+  rarity: ItemRarity;
+  /** Base sell price in gold. */
+  sell_price: number;
+  description: string;
+}
+
+/** Inventory state — tracks owned monster items + market listings. */
+export interface InventoryState {
+  /** Map of item_id -> quantity owned. */
+  items: Record<string, number>;
 }
 
 /**

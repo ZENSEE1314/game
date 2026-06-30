@@ -39,14 +39,21 @@ import {
   RotateCcw,
   Trophy,
   ScrollText,
+  Skull,
 } from "lucide-react";
 
 const SECTIONS = [
   {
-    id: "resources",
+    id: "gathering",
     icon: TreePine,
-    title: "Resources & Refining",
-    body: "Your Base Camp produces three raw materials — Wood, Stone, and Iron — at a rate set by your Gatherer facilities. Refineries automatically convert raw materials into refined materials (2 raw → 1 refined) at their processing rate. Refined materials are spent on upgrades, troops, and weapons. Upgrade your gatherers and refineries in the Base Camp tab to boost production.",
+    title: "Active Gathering (Tap Nodes)",
+    body: "The Gathering tab has three tappable nodes — Timber Grove (wood), Ore Mine (stone+iron), and Gold Farm (gold). Tap an image to instantly collect resources (active gameplay). Each node has a 5-second cooldown. Upgrade your Axe, Pickaxe, and Sickle to boost the yield per tap. This works alongside the passive production from Base Camp.",
+  },
+  {
+    id: "resources",
+    icon: Hammer,
+    title: "Base Camp (Passive Production)",
+    body: "Base Camp produces raw materials passively every second. Refineries auto-convert raw → refined (2:1 ratio). Upgrade gatherers and refineries to boost passive rates. This continues even while you're away (offline earnings). Refined materials are spent on upgrades, troops, and weapons.",
   },
   {
     id: "army",
@@ -57,14 +64,20 @@ const SECTIONS = [
   {
     id: "pvp",
     icon: Swords,
-    title: "Arena & PvP Combat",
-    body: "Attack NPC opponents in the Arena. Battle Score = your troops × your attack multiplier vs their troops × their defense multiplier. Highest score wins (ties go to the defender). The combat preview shows your odds before you attack. On victory, you loot 10% of the defender's unsecure gold + 10% of their refined wood/iron. Both sides ALWAYS take casualties: attacker loses 5% troops + 5% weapons; defender loses 10% + 10%.",
+    title: "Arena & PvP Combat (Stamina)",
+    body: "Attack NPC opponents in the Arena. Each attack costs 1 Arena Stamina (max 5). Stamina regenerates +1 every 3 hours — a live HH:MM:SS countdown shows when the next point is ready. Out of stamina? Watch an ad to instantly refill. Battle Score = your troops × attack multiplier vs their troops × defense multiplier. Highest wins. On victory, loot 10% of their unsecure gold + 10% refined wood/iron. Both sides always take casualties: attacker 5%, defender 10%.",
+  },
+  {
+    id: "cave",
+    icon: Skull,
+    title: "Cave Hunting & Market",
+    body: "Enter caves to hunt monsters for rare items (Wolf Tooth, Lion Skin, Wyvern Scale, Dragon Heart, etc.). You get 3 cave entries per day (resets every 24h). Each cave has a tier: Whispering Cavern (easy, 1h cooldown), Irondeep Mine (medium, 4h), Volcanic Depths (hard, 8h). Higher tier = lower success chance but better loot. If you fail, you get nothing. Items go to your Inventory — sell them at the Market for gold (rarer items sell for much more).",
   },
   {
     id: "ads",
     icon: Zap,
-    title: "Rewarded Ads (3 types)",
-    body: "Watch a simulated ad for a bonus: (1) Offline Double — 2× your offline earnings when you return. (2) Peace Shield — 3 hours of protection from raids (stacks to 24h). (3) Conscription — instantly restore 25% of troops lost in your most recent battle. Ads are simulated; no real ads are shown.",
+    title: "Rewarded Ads (4 types)",
+    body: "Watch a simulated ad for a bonus: (1) Offline Double — 2× your offline earnings when you return. (2) Peace Shield — 3 hours of protection from raids (stacks to 24h). (3) Conscription — instantly restore 25% of troops lost in your most recent battle. (4) Arena Stamina Refill — instantly refill your stamina to full. Ads are simulated; no real ads are shown.",
   },
   {
     id: "quests",

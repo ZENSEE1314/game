@@ -334,3 +334,71 @@ The previous round added `syncDerived` to `reconcileOnLoad` and `allocatePrestig
 3. **Sound design** — ambient forge/PvP sound effects (currently visual-only).
 4. **Balance tuning** — the sqrt prestige curve (1000 gold = 1 pt, 100K = 10 pts) may need tuning after playtesting.
 5. **Tutorial overlay** — for first-time players, a step-by-step spotlight tour pointing at the ResourceBar, Base Camp upgrade buttons, etc. (the HelpGuide covers this textually, but a visual tour would be more engaging).
+
+---
+Task ID: 9 (User-driven redesign + new gameplay systems)
+Agent: Main Architect
+Task: Major redesign per user request — fix hydration error, add arena stamina (5 max, +1/3h, HH:MM:SS timer), tap-to-collect resource nodes (tree/mine/farm images) with tool upgrades, cave hunting (3/day, levels, items), and market to sell items. Reorganize tabs to be user-friendly.
+
+## Current Project Status Assessment
+User reported a hydration mismatch error (browser extension adding style attributes to body/header) and requested a major redesign: simpler/more intuitive UI, arena attack limits with a visible timer, tappable resource nodes with images and upgradeable tools, a cave hunting system with monster items, and a market. The game had 7 tabs (Base Camp, Barracks/Forge, Arena, Quests, Stats, Leaderboard, Prestige) + events + prestige + sound system all working.
+
+## Completed Modifications This Round
+
+### 1. CRITICAL FIX: Hydration mismatch error
+- `src/app/layout.tsx` — added `suppressHydrationWarning` to the `<body>` element. The error was caused by a browser extension injecting `style={{padding-top:"38px"}}` into body and `data-zai-hidden="true"`/`style={{display:"none"}}` into the header. React's `suppressHydrationWarning` on `<html>` didn't propagate to `<body>`. Adding it to `<body>` lets React ignore extension-injected attribute differences. Verified: no hydration errors in console after reload.
+
+### 2. NEW ENGINE: Arena Stamina System (`src/lib/game/stamina-tap.ts`)
+- `ArenaStamina` type: current/max/next_regenerate_at/regenerate_interval_ms. Max 5, +1 every 3 hours.
+- `reconcileStamina(state, now)` — called every tick; adds regenerated points (handles multi-point offline catch-up).
+- `consumeStamina(state)` — called before each attack; returns ok=false if 0 stamina.
+- `refillStamina(state)` — full refill for the rewarded-ad hook.
+- `staminaCountdownLabel(state)` — returns "HH:MM:SS" countdown string.
+- Wired into store: `tick()` calls `reconcileStamina`; `attackOpponent()` calls `consumeStamina` first (blocks attack with "No arena stamina left!" reason); new `refillStaminaAd()` store method.
+
+### 3. NEW ENGINE: Tap-to-Collect Nodes (`src/lib/game/stamina-tap.ts`)
+- `TapNodesState` type: axe_level, pickaxe_level, sickle_level, per-node cooldown timestamps.
+- 3 nodes: Tree (wood, axe), Mine (stone+iron, pickaxe), Farm (gold, sickle). 5s cooldown per node.
+- `tapYield(state, node)` — yields scale with tool level (e.g. wood = 5 + 3×(axe_level-1)).
+- `tapNode(state, node, now)` — grants yield + sets cooldown. **BUG FIXED**: was adding `y.gold` (undefined for tree/mine) causing NaN gold; guarded with `if (y.gold)`.
+- `upgradeTool(state, tool)` — costs gold + refined iron + refined wood (geometric scaling).
+- Wired into store: `tapResourceNode(node)` + `upgradeToolLevel(tool)` methods.
+
+### 4. NEW ENGINE: Cave Hunting + Market (`src/lib/game/cave-market.ts`)
+- `MONSTER_ITEMS` — 12 items across 4 rarities (common: wolf_tooth/bat_wing/rat_tail; uncommon: lion_skin/bear_claw/spider_silk; rare: troll_hide/wyvern_scale/golem_core; epic: phoenix_feather/dragon_heart/kraken_eye). Each has sell_price (50–5000 gold).
+- `CAVES` — 3 caves: Whispering Cavern (tier 1, 1h cooldown, 80% success), Irondeep Mine (tier 2, 4h, 60%), Volcanic Depths (tier 3, 8h, 40%). Each has a weighted loot table.
+- `CaveState` — entries_today (max 3/day), next_reset_at (24h), last_entered per cave.
+- `performCaveHunt(state, caveId, now)` — consumes entry, sets cooldown, rolls success (boosted by player level), rolls weighted loot. Returns CaveHuntResult.
+- `sellItem(state, itemId, qty)` — sells from inventory for gold.
+- `rarityColor(rarity)` — UI helper (common=stone, uncommon=emerald, rare=amber, epic=rose).
+- Wired into store: `huntCave(caveId)` + `sellInventoryItem(itemId, qty)` methods; `tick()` calls `reconcileCave` for daily reset.
+
+### 5. NEW UI: Tap Nodes, Cave Hunt, Arena Stamina panels
+- Generated 4 AI images (1024×1024) via z-ai CLI → `public/nodes/{tree,mine,farm,cave}.png`.
+- `src/components/game/TapNodesPanel.tsx` (NEW) — 3 tappable node cards with images, pulsing glow ring when ready, cooldown overlay, yield preview, tool-level badge, UpgradeButton per tool. Re-renders every 500ms for cooldowns.
+- `src/components/game/CaveHuntingPanel.tsx` (NEW) — daily-entries card (3/3 with reset countdown), 3 cave cards (image + tier badge + success% + HH:MM:SS cooldown + loot preview + Enter button), inventory grid with rarity-tinted item cards + Sell buttons.
+- `src/components/game/Arena.tsx` (modified) — added `StaminaPanel` (stamina pips 5/5, HH:MM:SS countdown, +1/3h label, Refill-via-Ad button opening AdModal). Imported `staminaCountdownLabel` + `Clock` icon.
+- `src/app/page.tsx` (modified) — reorganized to 9 tabs with Gathering first (default tab) for intuitive active-play entry: Gathering, Base Camp, Barracks & Forge, Arena, Cave Hunt, Quests, Stats, Leaderboard, Prestige. Added TreePine + Skull icons.
+- `src/components/game/HelpGuide.tsx` (modified) — added "Active Gathering (Tap Nodes)" + "Cave Hunting & Market" sections; updated PvP section to mention stamina; updated Ads section to 4 types (added Stamina Refill).
+
+### 6. BUG FIX: NaN gold from tap nodes
+- `src/lib/game/stamina-tap.ts` — `tapNode` was adding `y.gold` (undefined for tree/mine) to player gold, causing NaN. Fixed with `if (y.gold)` guard.
+- `src/lib/game/constants.ts` — `formatNumber` now returns '0' for NaN/Infinity as a safety net.
+
+## Verification Results
+- `bun run lint` — clean (0 errors).
+- agent-browser QA: all 9 tabs render; Gathering tab shows 3 tappable node images (tree/mine/farm); tapping Gold Farm increased gold 3→16; Arena stamina shows 5/5 then 4/5 after attack with HH:MM:SS countdown "02:59:05"; Cave Hunt shows 3 caves with images, entering consumed 1 entry (3→2) and yielded 2× Wolf Tooth; Market sold 1 Wolf Tooth for 50 gold.
+- Hydration error: GONE (suppressHydrationWarning on body fixed the extension-injected attribute mismatch).
+- VLM confirmed: mobile 9-tab layout "tabs fit, Gathering content is clear."
+- Dev log: all 200 responses, no 500s after the NaN fix.
+
+## Unresolved Issues / Risks
+- None blocking. All new systems (stamina, tap nodes, cave hunting, market) verified end-to-end.
+- Minor: cave hunt result isn't returned from the store (only success/failure); the UI toasts a generic "Check your inventory" message. Could be enhanced to show the specific loot in a result modal.
+
+## Priority Recommendations for Next Phase
+1. **Cave hunt result modal** — show the specific item dropped (or "failed") in a result dialog after each hunt.
+2. **Market buy** — currently only sell; add a buy tab where players can purchase upgrade materials with gold.
+3. **Tool upgrade prestige** — make tool levels persist through rebirth (currently reset).
+4. **Stamina for cave entries** — consider a shared energy system or keep separate.
+5. **More node types** — fishing pond, herb garden for alchemy recipes.

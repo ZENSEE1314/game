@@ -78,6 +78,26 @@ export function createInitialState(): GameState {
       perks: {},
     },
     active_event: null,
+    arena_stamina: {
+      current: 5,
+      max: 5,
+      next_regenerate_at: Date.now() + 3 * 60 * 60 * 1000,
+      regenerate_interval_ms: 3 * 60 * 60 * 1000,
+    },
+    tap_nodes: {
+      axe_level: 1,
+      pickaxe_level: 1,
+      sickle_level: 1,
+      cooldowns: { tree: 0, mine: 0, farm: 0 },
+    },
+    cave: {
+      entries_today: 0,
+      next_reset_at: Date.now() + 24 * 60 * 60 * 1000,
+      last_entered: {},
+    },
+    inventory: {
+      items: {},
+    },
   };
 
   // Initialize the derived rate/capacity fields from facility levels.

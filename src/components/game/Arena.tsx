@@ -19,6 +19,7 @@ import * as React from "react";
 import { useGameStore } from "@/lib/game/store";
 import { formatNumber, LOOT_RATE } from "@/lib/game/constants";
 import { shieldRemainingLabel } from "@/lib/game/ads";
+import { staminaCountdownLabel, ARENA_STAMINA_MAX } from "@/lib/game/stamina-tap";
 import { previewCombat, projectPlayer, projectOpponent, type CombatPreview } from "@/lib/game/pvp";
 import type { Opponent, BattleRecord } from "@/lib/game/types";
 import { Card } from "@/components/ui/card";
@@ -38,6 +39,7 @@ import {
   History,
   Trophy,
   Zap,
+  Clock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -366,6 +368,109 @@ function BattleHistory({ history }: { history: BattleRecord[] }) {
   );
 }
 
+function StaminaPanel() {
+  const state = useGameStore((s) => s.state);
+  const refill = useGameStore((s) => s.refillStaminaAd);
+  const [adOpen, setAdOpen] = React.useState(false);
+  const [, force] = React.useReducer((x) => x + 1, 0);
+
+  // Re-render every second for the HH:MM:SS countdown.
+  React.useEffect(() => {
+    const id = setInterval(force, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const st = state.arena_stamina;
+  const countdown = staminaCountdownLabel(state);
+  const empty = st.current === 0;
+
+  return (
+    <>
+      <Card
+        className={cn(
+          "gap-2 p-3",
+          empty
+            ? "border-rose-900/50 bg-rose-950/20"
+            : "border-amber-900/40 bg-amber-950/15",
+        )}
+      >
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span
+              className={cn(
+                "flex size-8 items-center justify-center rounded-md [&_svg]:size-4",
+                empty
+                  ? "bg-rose-500/15 text-rose-400 ring-1 ring-rose-500/30"
+                  : "bg-amber-500/15 text-amber-400 ring-1 ring-amber-500/30",
+              )}
+            >
+              <Swords />
+            </span>
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-stone-300">
+                Arena Stamina
+              </div>
+              <div className="text-[11px] text-stone-400">
+                {empty ? "No stamina — wait or watch an ad" : `Next point in ${countdown}`}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {/* Stamina pips */}
+            <div className="flex items-center gap-1">
+              {Array.from({ length: st.max }).map((_, i) => (
+                <div
+                  key={i}
+                  className={cn(
+                    "size-2.5 rounded-full",
+                    i < st.current ? "bg-amber-400" : "bg-stone-700",
+                  )}
+                />
+              ))}
+            </div>
+            <span className="font-mono text-sm font-bold text-amber-300 tabular-nums">
+              {st.current}/{st.max}
+            </span>
+          </div>
+        </div>
+        {/* HH:MM:SS countdown + refill button */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 text-[11px] text-stone-400">
+            <Clock className="size-3 text-amber-400" />
+            <span className="font-mono tabular-nums">
+              {st.current >= st.max ? "Full" : countdown}
+            </span>
+            <span className="text-stone-600">·</span>
+            <span>+1 / 3h</span>
+          </div>
+          <Button
+            onClick={() => setAdOpen(true)}
+            size="sm"
+            className="gap-1 bg-amber-600 text-amber-50 shadow-md shadow-amber-900/40 hover:bg-amber-500"
+          >
+            <Zap className="size-3.5" />
+            Refill (Ad)
+          </Button>
+        </div>
+      </Card>
+
+      <AdModal
+        open={adOpen}
+        onClose={() => setAdOpen(false)}
+        onRewarded={() => {
+          refill();
+          toast.success("Stamina refilled!", {
+            description: `Back to ${ARENA_STAMINA_MAX} arena attacks.`,
+          });
+        }}
+        title="Stamina Refill"
+        description="Watch this short message to instantly refill your arena stamina to full."
+        rewardLabel={`Full ${ARENA_STAMINA_MAX} Stamina`}
+      />
+    </>
+  );
+}
+
 export function Arena() {
   const opponents = useGameStore((s) => s.opponents);
   const busy = useGameStore((s) => s.busy);
@@ -385,6 +490,7 @@ export function Arena() {
         <div className="h-px flex-1 bg-stone-800/60" />
       </div>
 
+      <StaminaPanel />
       <ShieldPanel />
 
       {/* Scout + opponent list */}
