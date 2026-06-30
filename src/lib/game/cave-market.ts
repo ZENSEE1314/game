@@ -12,6 +12,7 @@
  */
 
 import type { GameState, CaveDef, CaveHuntResult, MonsterItemDef, ItemRarity, CaveState } from './types';
+import { trinketMultiplier } from './crafting';
 
 /** Max cave entries per day. */
 export const CAVE_MAX_ENTRIES_PER_DAY = 3;
@@ -176,8 +177,10 @@ export function performCaveHunt(
   }
 
   const cave = CAVES.find((c) => c.id === caveId)!;
-  // Success chance boosted slightly by player level (max +15% at L15).
-  const successChance = Math.min(0.95, cave.base_success + state.player.level * 0.01);
+  // Success chance boosted by player level + cave_success trinkets.
+  const caveSuccessMult = trinketMultiplier(state, 'cave_success');
+  const baseChance = cave.base_success + state.player.level * 0.01;
+  const successChance = Math.min(0.99, baseChance * caveSuccessMult);
   const success = Math.random() < successChance;
 
   const next = structuredClone(state);

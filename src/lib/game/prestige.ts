@@ -205,6 +205,10 @@ export function performRebirth(state: GameState): { state: GameState; pointsGain
     quests: state.quests,                     // keep current daily quests
     quests_rotated_at: state.quests_rotated_at,
     battle_history: state.battle_history.slice(0, 5), // keep recent history flavor
+    inventory: {
+      items: {},  // reset monster items (run-specific)
+      trinkets: state.inventory?.trinkets ?? {},  // KEEP trinkets (permanent gear)
+    },
     prestige: recomputeGlobalMultiplier({
       ...state.prestige,
       rebirth_count: state.prestige.rebirth_count + 1,

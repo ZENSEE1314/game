@@ -13,6 +13,7 @@ import {
   weaponMultiplierForTier,
 } from './constants';
 import { perkMultiplier } from './prestige';
+import { trinketMultiplier } from './crafting';
 
 /** A fresh new-player GameState. */
 export function createInitialState(): GameState {
@@ -176,12 +177,13 @@ export function generateOpponents(playerLevel: number): Opponent[] {
 /**
  * Re-derive all cached rate fields (call after any facility upgrade).
  * Applies prestige perk multipliers for vault capacity (fortified)
- * and troop capacity (quartermaster).
+ * and troop capacity (quartermaster), PLUS trinket bonuses for the
+ * same (vault_cap + troop_cap trinkets stack with perks).
  */
 export function syncDerived(state: GameState): GameState {
   const next = structuredClone(state);
-  const vaultMult = perkMultiplier(next, 'fortified');
-  const troopCapMult = perkMultiplier(next, 'quartermaster');
+  const vaultMult = perkMultiplier(next, 'fortified') * trinketMultiplier(next, 'vault_cap');
+  const troopCapMult = perkMultiplier(next, 'quartermaster') * trinketMultiplier(next, 'troop_cap');
   recomputeDerived(next, { vaultMult, troopCapMult });
   return next;
 }

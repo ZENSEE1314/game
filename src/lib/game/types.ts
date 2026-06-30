@@ -340,10 +340,45 @@ export interface MonsterItemDef {
   description: string;
 }
 
-/** Inventory state — tracks owned monster items + market listings. */
+/** Inventory state — tracks owned monster items + crafted trinkets. */
 export interface InventoryState {
   /** Map of item_id -> quantity owned. */
   items: Record<string, number>;
+  /** Map of trinket_id -> quantity crafted (permanent gear). */
+  trinkets: Record<string, number>;
+}
+
+/** A crafting recipe — combines monster items into a permanent trinket. */
+export interface CraftRecipe {
+  id: string;
+  name: string;
+  avatar: string;
+  description: string;
+  /** Required monster items + quantities. */
+  ingredients: { item_id: string; quantity: number }[];
+  /** The permanent bonus this trinket grants. */
+  bonus: TrinketBonus;
+  /** Bonus value per trinket owned (stacks). */
+  bonus_per_unit: number;
+  /** Max quantity of this trinket that can be owned. */
+  max_owned: number;
+}
+
+/** The type of permanent bonus a crafted trinket grants. */
+export type TrinketBonusType =
+  | 'attack_mult'      // +X% weapon attack
+  | 'defense_mult'     // +X% weapon defense
+  | 'troop_cap'        // +X% troop capacity
+  | 'vault_cap'        // +X% vault capacity
+  | 'gold_per_sec'     // +X% passive gold
+  | 'pvp_loot'         // +X% PvP loot
+  | 'cave_success'     // +X% cave success chance
+  | 'tap_yield';       // +X% tap yield
+
+export interface TrinketBonus {
+  type: TrinketBonusType;
+  label: string;
+  icon: string;
 }
 
 /**

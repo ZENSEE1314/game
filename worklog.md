@@ -445,3 +445,64 @@ The game has 9 tabs (Gathering, Base Camp, Barracks/Forge, Arena, Cave Hunt, Que
 3. **Crafting** — combine monster items into permanent gear upgrades (e.g. 10 Wolf Teeth → +1% attack trinket).
 4. **Cave entry via ad** — allow 1 extra daily cave entry via a rewarded ad.
 5. **More node types** — fishing pond, herb garden for alchemy recipes.
+
+---
+Task ID: 11 (webDevReview round 5 — Crafting system + cave-entry-via-ad)
+Agent: Main Architect
+Task: Recurring webDevReview — QA, add the crafting system (combine monster items into permanent trinkets), add cave-entry-via-ad, wire all 8 trinket bonus types into the engine.
+
+## Current Project Status Assessment
+The game has 9 tabs with arena stamina, tap nodes, cave hunting, market, events, prestige, and sound all working. The previous round's #3 recommendation was Crafting ("combine monster items into permanent gear upgrades") and #4 was "Cave entry via ad". QA confirmed no runtime errors. The cave hunt result modal (added last round) works well, so the crafting system can build on the inventory flow.
+
+## Completed Modifications This Round
+
+### 1. NEW FEATURE: Crafting System (`src/lib/game/crafting.ts`)
+- `CraftRecipe` + `TrinketBonus` + `TrinketBonusType` types added to `src/lib/game/types.ts`. Trinkets are permanent gear that persist through rebirth.
+- `InventoryState` extended with `trinkets: Record<string, number>` (owned trinket counts).
+- `CRAFT_RECIPES` — 10 recipes across all ingredient rarities:
+  - **Common-based**: Wolf's Fang Necklace (troop_cap +5%), Bat Leather Cape (tap_yield +5%)
+  - **Uncommon-based**: Lion's Mantle (gold_per_sec +8%), Bear Gauntlets (vault_cap +8%), Spider Silk Robe (defense_mult +4%)
+  - **Rare-based**: Troll Hide Armor (attack_mult +4%), Wyvern Scale Shield (cave_success +5%), Golem Amulet (pvp_loot +6%)
+  - **Epic-based**: Phoenix Crown (gold_per_sec +20%), Dragon Heart Ring (attack_mult +15%)
+- `trinketMultiplier(state, type)` — computes stacking bonus (1 + sum of per_unit × owned). Defensive against missing inventory/trinkets.
+- `canCraft(state, recipeId)` + `craftTrinket(state, recipeId)` — validates ingredients + max_owned, consumes ingredients, adds trinket.
+
+### 2. WIRE: All 8 trinket bonus types into the engine
+- `src/lib/game/stamina-tap.ts` — `tapYield` now multiplies by `trinketMultiplier(state, 'tap_yield')`.
+- `src/lib/game/cave-market.ts` — `performCaveHunt` success chance now multiplies by `trinketMultiplier(state, 'cave_success')` (capped at 0.99).
+- `src/lib/game/engine.ts` — `applyProductionTick` passive gold now multiplies by `trinketMultiplier(state, 'gold_per_sec')`.
+- `src/lib/game/pvp.ts` — `applyBattleToAttacker` loot now multiplies by `trinketMultiplier(state, 'pvp_loot')` (stacks with event bonus).
+- `src/lib/game/initial-state.ts` — `syncDerived` now applies `trinketMultiplier(state, 'vault_cap')` and `trinketMultiplier(state, 'troop_cap')` on top of prestige perks.
+- `src/lib/game/store.ts` — `reconcileOnLoad` + `craftItem` now apply `trinketMultiplier(state, 'attack_mult')` + `trinketMultiplier(state, 'defense_mult')` to weapon multipliers (on top of warmonger perk).
+- `src/lib/game/prestige.ts` — `performRebirth` now PRESERVES trinkets (resets monster items but keeps trinkets as permanent gear).
+
+### 3. NEW FEATURE: Cave entry via rewarded ad
+- `src/lib/game/store.ts` — added `grantCaveEntryAd()` store method: decrements `entries_today` (granting +1 effective entry) + increments `total_ads_watched`.
+- `src/components/game/CaveHuntingPanel.tsx` — added "+1 (Ad)" button in the Daily Entries card, visible ONLY when entriesLeft === 0. Opens AdModal; on reward calls `grantCaveEntryAd()` + toasts "Extra cave entry granted!".
+
+### 4. NEW UI: Crafting section in Cave Hunt tab
+- `src/components/game/CaveHuntingPanel.tsx` — added `CraftingSection` component below the Inventory:
+  - Section header "Crafting — Permanent Trinkets" with Hammer icon.
+  - 2-col grid of 10 recipe cards: trinket avatar + name + owned-count badge + description + bonus label (+X% BonusName) + ingredient chips (showing have/need, green if enough, red if not) + UpgradeButton ("Craft" / "Craft (+1)" / "Maxed").
+  - On craft: calls `craftItem(recipeId)`, toasts success/error.
+  - Crafting immediately re-syncs derived stats (vault/troop cap) + weapon multipliers (attack/defense) so bonuses apply instantly.
+
+### 5. SCHEMA: Merge backfill for trinkets
+- `src/lib/game/store.ts` — `merge` function now deep-merges `inventory` with explicit `items` + `trinkets` backfill so old saves without the `trinkets` field get `{}` seeded.
+
+## Verification Results
+- `bun run lint` — clean (0 errors).
+- agent-browser QA: Crafting section shows all 10 recipes with ingredient counts (e.g. Bear Gauntlets "🐻 1/3", Craft disabled). Cave hunt +1-ad button appears when entries=0; claiming the ad restored entries 0→1. Hunt result modal still works (success shows item, failure shows escape message).
+- No runtime errors, no hydration errors, all 9 tabs functional.
+- Dev log: all 200 responses.
+
+## Unresolved Issues / Risks
+- None blocking. The crafting system is fully wired — all 8 bonus types apply in their respective systems.
+- Minor: crafting ingredients show have/need but the player can't easily see total bonus from all owned trinkets; a "Total Bonuses" summary could help.
+
+## Priority Recommendations for Next Phase
+1. **Total Bonuses summary** — a panel showing the combined multiplier from all owned trinkets + prestige perks.
+2. **Market buy tab** — purchase upgrade materials or rare items with gold.
+3. **Tool upgrade prestige** — make tool levels persist through rebirth.
+4. **More node types** — fishing pond, herb garden.
+5. **Crafting recipe discovery** — unlock recipes via achievements or cave tiers.

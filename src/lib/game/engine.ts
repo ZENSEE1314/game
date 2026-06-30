@@ -22,6 +22,7 @@ import {
 } from './constants';
 import { perkMultiplier, trackRunGold } from './prestige';
 import { eventMultiplier } from './events';
+import { trinketMultiplier } from './crafting';
 
 /**
  * Advance a single resource by `seconds`.
@@ -82,8 +83,9 @@ export function applyProductionTick(state: GameState, seconds: number): GameStat
   next.resources.stone = tickResource(next.resources.stone, seconds, rawMult * rawEvent, refineMult * refineEvent);
   next.resources.iron = tickResource(next.resources.iron, seconds, rawMult * rawEvent, refineMult * refineEvent);
 
-  // Passive gold trickle (prestige logistics × event gold buff).
-  const goldGained = goldPerSec(next.player.level) * goldMult * goldEvent * seconds;
+  // Passive gold trickle (prestige logistics × event gold buff × trinket bonus).
+  const goldTrinket = trinketMultiplier(next, 'gold_per_sec');
+  const goldGained = goldPerSec(next.player.level) * goldMult * goldEvent * goldTrinket * seconds;
   next.player.gold += goldGained;
 
   // Track run gold for the rebirth calc.

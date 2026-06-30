@@ -54,6 +54,7 @@ import {
   CAVES,
   getItem,
 } from './cave-market';
+import { craftTrinket, trinketMultiplier } from './crafting';
 
 interface PendingOffline {
   earnings: OfflineEarnings;
@@ -147,6 +148,8 @@ export interface GameStore {
   huntCave: (caveId: string) => { success: boolean; reason?: string; result?: import('./types').CaveHuntResult; caveName?: string };
   sellInventoryItem: (itemId: string, quantity: number) => boolean;
   sellAllItems: (rarity?: import('./types').ItemRarity) => { goldGained: number; count: number };
+  craftItem: (recipeId: string) => boolean;
+  grantCaveEntryAd: () => void;
 
   // --- Misc -------------------------------------------------------------
   refreshOpponents: () => Promise<void>;
@@ -216,12 +219,16 @@ export const useGameStore = create<GameStore>()(
           // quartermaster troop cap) apply immediately on load.
           state = syncDerived(state);
 
-          // Re-apply warmonger perk to weapon multipliers (in case the
-          // player invested points in a previous session).
-          state.gear.weapon_multipliers = applyWarmongerPerk(
-            state,
-            weaponMultiplierForTier(state.gear.weapon_tier_level),
-          );
+          // Re-apply warmonger perk + attack/defense trinkets to weapon
+          // multipliers (in case the player invested in a previous session).
+          const baseMults = weaponMultiplierForTier(state.gear.weapon_tier_level);
+          const warmongered = applyWarmongerPerk(state, baseMults);
+          const atkTrinket = trinketMultiplier(state, 'attack_mult');
+          const defTrinket = trinketMultiplier(state, 'defense_mult');
+          state.gear.weapon_multipliers = {
+            attack_mult: +(warmongered.attack_mult * atkTrinket).toFixed(4),
+            defense_mult: +(warmongered.defense_mult * defTrinket).toFixed(4),
+          };
 
           const deltaSec = Math.max(0, (now - state.last_saved_at) / 1000);
           if (deltaSec < 30) {
@@ -541,6 +548,41 @@ export const useGameStore = create<GameStore>()(
         return { goldGained: totalGold, count: totalCount };
       },
 
+      craftItem: (recipeId) => {
+        const s = get();
+        const result = craftTrinket(s.state, recipeId);
+        if (result.ok) {
+          // Re-sync derived stats so vault/troop-cap trinket bonuses apply,
+          // and re-apply weapon multipliers with the new attack/defense trinkets.
+          let next = syncDerived(result.state);
+          const baseMults = weaponMultiplierForTier(next.gear.weapon_tier_level);
+          const warmongered = applyWarmongerPerk(next, baseMults);
+          const atkTrinket = trinketMultiplier(next, 'attack_mult');
+          const defTrinket = trinketMultiplier(next, 'defense_mult');
+          next.gear.weapon_multipliers = {
+            attack_mult: +(warmongered.attack_mult * atkTrinket).toFixed(4),
+            defense_mult: +(warmongered.defense_mult * defTrinket).toFixed(4),
+          };
+          set({ state: next });
+          playSound('upgrade');
+        } else {
+          playSound('error');
+        }
+        return result.ok;
+      },
+
+      grantCaveEntryAd: () => {
+        const s = get();
+        // Grant +1 cave entry (up to max) by decrementing entries_today.
+        const next = structuredClone(s.state);
+        if (next.cave.entries_today > 0) {
+          next.cave.entries_today -= 1;
+        }
+        next.stats.total_ads_watched += 1;
+        set({ state: next });
+        playSound('ad');
+      },
+
       // -----------------------------------------------------------------
       // MISC
       // -----------------------------------------------------------------
@@ -619,7 +661,10 @@ export const useGameStore = create<GameStore>()(
           arena_stamina: currentState.arena_stamina ?? current.state.arena_stamina,
           tap_nodes: currentState.tap_nodes ?? current.state.tap_nodes,
           cave: currentState.cave ?? current.state.cave,
-          inventory: currentState.inventory ?? current.state.inventory,
+          inventory: {
+            items: currentState.inventory?.items ?? current.state.inventory.items,
+            trinkets: currentState.inventory?.trinkets ?? current.state.inventory.trinkets ?? {},
+          },
           resources: { ...current.state.resources, ...(currentState.resources ?? {}) },
           player: { ...current.state.player, ...(currentState.player ?? {}) },
           army: { ...current.state.army, ...(currentState.army ?? {}) },

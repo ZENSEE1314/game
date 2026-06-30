@@ -15,6 +15,7 @@
 
 import type { GameState, TapNodesState, ArenaStamina } from './types';
 import { formatNumber } from './constants';
+import { trinketMultiplier } from './crafting';
 
 /** Arena stamina config. */
 export const ARENA_STAMINA_MAX = 5;
@@ -137,19 +138,21 @@ export function createInitialTapNodes(): TapNodesState {
 /** Yield per tap for a node type at the current tool level. */
 export function tapYield(state: GameState, node: 'tree' | 'mine' | 'farm'): { wood?: number; stone?: number; iron?: number; gold: number } {
   const tn = state.tap_nodes;
+  // Trinket bonus (tap_yield) — applied to all tap yields.
+  const tapMult = trinketMultiplier(state, 'tap_yield');
   switch (node) {
     case 'tree':
       // Axe level boosts wood. 5 base, +3 per level.
-      return { wood: 5 + 3 * (tn.axe_level - 1) };
+      return { wood: Math.floor((5 + 3 * (tn.axe_level - 1)) * tapMult) };
     case 'mine':
       // Pickaxe boosts stone + iron. 3 stone + 2 iron base, +2/+1 per level.
       return {
-        stone: 3 + 2 * (tn.pickaxe_level - 1),
-        iron: 2 + 1 * (tn.pickaxe_level - 1),
+        stone: Math.floor((3 + 2 * (tn.pickaxe_level - 1)) * tapMult),
+        iron: Math.floor((2 + 1 * (tn.pickaxe_level - 1)) * tapMult),
       };
     case 'farm':
       // Sickle boosts gold. 10 base, +5 per level.
-      return { gold: 10 + 5 * (tn.sickle_level - 1) };
+      return { gold: Math.floor((10 + 5 * (tn.sickle_level - 1)) * tapMult) };
   }
 }
 

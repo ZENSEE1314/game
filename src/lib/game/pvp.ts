@@ -21,6 +21,7 @@
 import type { CombatantState, BattleResult, GameState, Opponent } from './types';
 import { trackRunGold } from './prestige';
 import { eventMultiplier } from './events';
+import { trinketMultiplier } from './crafting';
 import {
   ATTACKER_TROOP_LOSS_RATE,
   ATTACKER_WEAPON_LOSS_RATE,
@@ -165,9 +166,9 @@ export function applyBattleToAttacker(state: GameState, result: BattleResult, op
   next.army.active_troops = Math.max(0, next.army.active_troops - result.attacker_casualties.troops_lost);
   next.gear.weapon_count = Math.max(0, next.gear.weapon_count - result.attacker_casualties.weapons_lost);
 
-  // Loot (only on victory). Apply pvp_loot event multiplier if active.
+  // Loot (only on victory). Apply pvp_loot event + trinket multipliers.
   if (result.attacker_won) {
-    const lootMult = eventMultiplier(next, 'pvp_loot');
+    const lootMult = eventMultiplier(next, 'pvp_loot') * trinketMultiplier(next, 'pvp_loot');
     next.player.gold += Math.floor(result.loot.gold * lootMult);
     next.resources.wood.refined_amount += Math.floor(result.loot.refined_wood * lootMult);
     next.resources.iron.refined_amount += Math.floor(result.loot.refined_iron * lootMult);

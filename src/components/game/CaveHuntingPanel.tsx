@@ -19,6 +19,7 @@ import {
   rarityColor,
   getItem,
 } from "@/lib/game/cave-market";
+import { CRAFT_RECIPES, canCraft } from "@/lib/game/crafting";
 import { formatNumber } from "@/lib/game/constants";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -31,9 +32,10 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { UpgradeButton } from "@/components/game/ui/UpgradeButton";
+import { AdModal } from "@/components/game/AdModal";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { Skull, Clock, Zap, Package, Coins, Check, X } from "lucide-react";
+import { Skull, Clock, Zap, Package, Coins, Check, X, Hammer } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CaveHuntResult } from "@/lib/game/types";
 
@@ -47,8 +49,11 @@ export function CaveHuntingPanel() {
   const hunt = useGameStore((s) => s.huntCave);
   const sell = useGameStore((s) => s.sellInventoryItem);
   const sellAll = useGameStore((s) => s.sellAllItems);
+  const craft = useGameStore((s) => s.craftItem);
+  const grantEntryAd = useGameStore((s) => s.grantCaveEntryAd);
   const [, force] = React.useReducer((x) => x + 1, 0);
   const [modalData, setModalData] = React.useState<HuntModalData | null>(null);
+  const [entryAdOpen, setEntryAdOpen] = React.useState(false);
 
   // Re-render every second for cooldown timers.
   React.useEffect(() => {
@@ -97,11 +102,37 @@ export function CaveHuntingPanel() {
               </div>
             </div>
           </div>
-          <Badge className="gap-1 bg-amber-600 text-amber-50">
-            {entriesLeft} / {CAVE_MAX_ENTRIES_PER_DAY}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge className="gap-1 bg-amber-600 text-amber-50">
+              {entriesLeft} / {CAVE_MAX_ENTRIES_PER_DAY}
+            </Badge>
+            {entriesLeft === 0 && (
+              <Button
+                onClick={() => setEntryAdOpen(true)}
+                size="sm"
+                className="gap-1 bg-amber-600 text-amber-50 shadow-md shadow-amber-900/40 hover:bg-amber-500"
+              >
+                <Zap className="size-3.5" />
+                +1 (Ad)
+              </Button>
+            )}
+          </div>
         </div>
       </Card>
+
+      <AdModal
+        open={entryAdOpen}
+        onClose={() => setEntryAdOpen(false)}
+        onRewarded={() => {
+          grantEntryAd();
+          toast.success("Extra cave entry granted!", {
+            description: "You can enter one more cave today.",
+          });
+        }}
+        title="Extra Cave Entry"
+        description="Watch this short message to gain one extra cave entry today."
+        rewardLabel="+1 Cave Entry"
+      />
 
       {/* Cave cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -194,8 +225,96 @@ export function CaveHuntingPanel() {
         }} />
       </div>
 
+      {/* Crafting section */}
+      <CraftingSection state={state} onCraft={(recipeId, name) => {
+        const ok = craft(recipeId);
+        if (ok) {
+          toast.success(`${name} crafted!`, { description: "Permanent bonus active." });
+        } else {
+          toast.error("Can't craft", { description: "Not enough ingredients or max owned." });
+        }
+      }} />
+
       {/* Hunt result modal */}
       <HuntResultModal data={modalData} onClose={() => setModalData(null)} />
+    </div>
+  );
+}
+
+function CraftingSection({
+  state,
+  onCraft,
+}: {
+  state: ReturnType<typeof useGameStore.getState>["state"];
+  onCraft: (recipeId: string, name: string) => void;
+}) {
+  return (
+    <div className="space-y-2 pt-2">
+      <div className="flex items-center gap-2">
+        <Hammer className="size-4 text-amber-400" />
+        <span className="text-xs font-semibold uppercase tracking-wider text-stone-400">
+          Crafting — Permanent Trinkets
+        </span>
+        <div className="h-px flex-1 bg-stone-800/60" />
+      </div>
+      <p className="text-[11px] text-stone-500">
+        Combine monster items into permanent trinkets. Bonuses stack and persist through rebirth.
+      </p>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {CRAFT_RECIPES.map((recipe) => {
+          const check = canCraft(state, recipe.id);
+          const owned = state.inventory.trinkets?.[recipe.id] ?? 0;
+          return (
+            <Card key={recipe.id} className="gap-2 border-stone-800/80 bg-stone-900/50 p-3">
+              <div className="flex items-start gap-2">
+                <span className="text-2xl">{recipe.avatar}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="truncate text-xs font-bold text-stone-100">{recipe.name}</span>
+                    {owned > 0 && (
+                      <Badge className="bg-amber-600 px-1 text-[9px] text-amber-50">×{owned}</Badge>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-stone-400">{recipe.description}</p>
+                  <div className="mt-0.5 text-[10px] text-emerald-300">
+                    +{Math.round(recipe.bonus_per_unit * 100)}% {recipe.bonus.label}
+                  </div>
+                </div>
+              </div>
+              {/* Ingredients */}
+              <div className="flex flex-wrap gap-1">
+                {recipe.ingredients.map((ing) => {
+                  const item = getItem(ing.item_id);
+                  const have = state.inventory.items[ing.item_id] ?? 0;
+                  const enough = have >= ing.quantity;
+                  return (
+                    <span
+                      key={ing.item_id}
+                      className={cn(
+                        "rounded px-1.5 py-0.5 text-[9px] tabular-nums",
+                        enough ? "bg-emerald-950/40 text-emerald-300" : "bg-rose-950/40 text-rose-300",
+                      )}
+                      title={item?.name}
+                    >
+                      {item?.avatar} {have}/{ing.quantity}
+                    </span>
+                  );
+                })}
+              </div>
+              <UpgradeButton
+                canAfford={check.ok}
+                onClick={() => onCraft(recipe.id, recipe.name)}
+                className="w-full text-[11px]"
+              >
+                <span className="flex items-center justify-center gap-1">
+                  <Hammer className="size-3" />
+                  {owned >= recipe.max_owned ? "Maxed" : `Craft${owned > 0 ? ` (+1)` : ""}`}
+                </span>
+              </UpgradeButton>
+            </Card>
+          );
+        })}
+      </div>
     </div>
   );
 }
