@@ -1,0 +1,170 @@
+"use client";
+
+/**
+ * Idle War — main page.
+ *
+ * Composes the full game shell:
+ *   - useGameLoop() drives the 1s tick + offline reconciliation.
+ *   - ResourceBar (sticky top).
+ *   - 3-tab Tabs section (Base Camp / Barracks & Forge / Arena) with
+ *     subtle Framer Motion fade transitions between tabs.
+ *   - Page-level modals (OfflineEarningsModal, BattleReportModal).
+ *   - Sticky footer with version, ad disclaimer, and Reset Game
+ *     (AlertDialog confirmed) -> resetGame().
+ */
+
+import * as React from "react";
+import { useGameLoop } from "@/hooks/useGameLoop";
+import { useGameStore } from "@/lib/game/store";
+import { ResourceBar } from "@/components/game/ResourceBar";
+import { BaseCamp } from "@/components/game/BaseCamp";
+import { BarracksForge } from "@/components/game/BarracksForge";
+import { Arena } from "@/components/game/Arena";
+import { OfflineEarningsModal } from "@/components/game/OfflineEarningsModal";
+import { BattleReportModal } from "@/components/game/BattleReportModal";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { motion, AnimatePresence } from "framer-motion";
+import { TentTree, Hammer, Swords, RotateCcw, Flag } from "lucide-react";
+import { toast } from "sonner";
+
+const TABS = [
+  { value: "base", label: "Base Camp", icon: TentTree },
+  { value: "barracks", label: "Barracks & Forge", icon: Hammer },
+  { value: "arena", label: "Arena", icon: Swords },
+] as const;
+
+export default function Home() {
+  useGameLoop();
+  const resetGame = useGameStore((s) => s.resetGame);
+  const [tab, setTab] = React.useState<(typeof TABS)[number]["value"]>("base");
+
+  const handleReset = () => {
+    resetGame();
+    toast.success("Game reset", {
+      description: "A new campaign begins. Build your empire anew, Commander.",
+    });
+  };
+
+  return (
+    <div className="relative flex min-h-screen flex-col bg-stone-950 text-stone-100">
+      {/* Atmospheric background */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 z-0"
+        style={{
+          background:
+            "radial-gradient(1200px 600px at 50% -10%, rgba(180,83,9,0.18), transparent 60%)," +
+            "radial-gradient(900px 500px at 100% 100%, rgba(127,29,29,0.12), transparent 60%)," +
+            "radial-gradient(700px 500px at 0% 80%, rgba(20,83,45,0.10), transparent 60%)",
+        }}
+      />
+
+      {/* Sticky top bar */}
+      <div className="relative z-20">
+        <ResourceBar />
+      </div>
+
+      {/* Main content */}
+      <main className="relative z-10 mx-auto w-full max-w-6xl flex-1 px-3 py-4 sm:px-4 sm:py-6">
+        <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="gap-3">
+          <div className="flex justify-center">
+            <TabsList className="h-auto gap-1 rounded-lg border border-stone-800/80 bg-stone-900/70 p-1 backdrop-blur">
+              {TABS.map(({ value, label, icon: Icon }) => (
+                <TabsTrigger
+                  key={value}
+                  value={value}
+                  className="gap-1.5 rounded-md px-3 py-2 text-xs font-medium text-stone-300 data-[state=active]:bg-amber-950/60 data-[state=active]:text-amber-200 data-[state=active]:shadow-inner sm:text-sm"
+                >
+                  <Icon className="size-4" />
+                  <span className="hidden sm:inline">{label}</span>
+                  <span className="sm:hidden">
+                    {value === "base" ? "Camp" : value === "barracks" ? "Forge" : "Arena"}
+                  </span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </div>
+
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={tab}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              className="mt-4"
+            >
+              {tab === "base" && <BaseCamp />}
+              {tab === "barracks" && <BarracksForge />}
+              {tab === "arena" && <Arena />}
+            </motion.div>
+          </AnimatePresence>
+        </Tabs>
+      </main>
+
+      {/* Page-level modals */}
+      <OfflineEarningsModal />
+      <BattleReportModal />
+
+      {/* Sticky footer */}
+      <footer className="relative z-10 mt-auto border-t border-stone-800/80 bg-stone-950/90 backdrop-blur">
+        <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-2 px-3 py-3 text-xs text-stone-500 sm:flex-row sm:px-4">
+          <div className="flex items-center gap-2">
+            <Flag className="size-3.5 text-amber-500" />
+            <span className="font-semibold text-stone-300">Idle War</span>
+            <span className="text-stone-600">v1.0</span>
+          </div>
+          <div className="text-center text-[11px]">
+            Ad-supported · Simulated rewarded ads · Progress saved locally
+          </div>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 border-stone-700 bg-stone-900 text-stone-400 hover:bg-stone-800 hover:text-rose-300"
+              >
+                <RotateCcw className="size-3.5" />
+                Reset Game
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent className="border-stone-700 bg-stone-950 text-stone-100">
+              <AlertDialogHeader>
+                <AlertDialogTitle className="text-stone-100">
+                  Reset your campaign?
+                </AlertDialogTitle>
+                <AlertDialogDescription className="text-stone-400">
+                  This will permanently erase your commander, resources, army,
+                  and battle history. This cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel className="border-stone-700 bg-stone-900 text-stone-200 hover:bg-stone-800">
+                  Cancel
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleReset}
+                  className="bg-rose-700 text-rose-50 hover:bg-rose-600"
+                >
+                  Reset
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      </footer>
+    </div>
+  );
+}
