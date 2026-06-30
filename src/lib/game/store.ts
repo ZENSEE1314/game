@@ -43,7 +43,7 @@ import { playSound } from './sound';
 import {
   reconcileStamina,
   consumeStamina,
-  refillStamina,
+  addOneStamina,
   tapNode,
   upgradeTool,
 } from './stamina-tap';
@@ -55,6 +55,17 @@ import {
   getItem,
 } from './cave-market';
 import { craftTrinket, trinketMultiplier } from './crafting';
+import { claimCheckIn, canClaimCheckIn } from './check-in';
+import { claimCampaign, canClaimCampaign, campaignProgress, getCurrentCampaignQuest } from './campaign';
+import {
+  createGuild as createGuildFn,
+  leaveGuild as leaveGuildFn,
+  sendGuildMessage as sendGuildMsgFn,
+  declareGuildWar as declareWarFn,
+  tradeResources as tradeFn,
+  getRivalGuilds,
+  isInGuild,
+} from './guild';
 
 interface PendingOffline {
   earnings: OfflineEarnings;
@@ -150,6 +161,13 @@ export interface GameStore {
   sellAllItems: (rarity?: import('./types').ItemRarity) => { goldGained: number; count: number };
   craftItem: (recipeId: string) => boolean;
   grantCaveEntryAd: () => void;
+  claimDailyCheckIn: () => boolean;
+  claimCampaignQuest: () => boolean;
+  createGuild: (name: string, tag: string) => boolean;
+  leaveGuild: () => void;
+  sendGuildMessage: (text: string) => void;
+  declareGuildWar: (rivalIndex: number) => { success: boolean; won: boolean; goldGained: number; reason?: string };
+  tradeResources: (giveType: 'gold' | 'wood' | 'stone' | 'iron', giveQty: number, getType: 'gold' | 'wood' | 'stone' | 'iron') => { success: boolean; received: number; reason?: string };
 
   // --- Misc -------------------------------------------------------------
   refreshOpponents: () => Promise<void>;
@@ -470,7 +488,8 @@ export const useGameStore = create<GameStore>()(
       // -----------------------------------------------------------------
       refillStaminaAd: () => {
         const s = get();
-        const next = refillStamina(s.state);
+        // Ad gives +1 stamina (not full) so players watch multiple ads.
+        const next = addOneStamina(s.state);
         next.stats.total_ads_watched += 1;
         set({ state: next });
         playSound('ad');
@@ -489,13 +508,13 @@ export const useGameStore = create<GameStore>()(
       upgradeToolLevel: (tool) => {
         const s = get();
         const result = upgradeTool(s.state, tool);
-        if (result.success) {
+        if (result.ok) {
           set({ state: result.state });
           playSound('upgrade');
         } else {
           playSound('error');
         }
-        return result.success;
+        return result.ok;
       },
 
       huntCave: (caveId) => {
@@ -584,6 +603,84 @@ export const useGameStore = create<GameStore>()(
       },
 
       // -----------------------------------------------------------------
+      // DAILY CHECK-IN + CAMPAIGN + GUILD
+      // -----------------------------------------------------------------
+      claimDailyCheckIn: () => {
+        const s = get();
+        const result = claimCheckIn(s.state, Date.now());
+        if (result.ok) {
+          set({ state: result.state });
+          playSound('quest');
+        } else {
+          playSound('error');
+        }
+        return result.ok;
+      },
+
+      claimCampaignQuest: () => {
+        const s = get();
+        const result = claimCampaign(s.state);
+        if (result.ok) {
+          set({ state: result.state });
+          playSound('quest');
+        } else {
+          playSound('error');
+        }
+        return result.ok;
+      },
+
+      createGuild: (name, tag) => {
+        const s = get();
+        const result = createGuildFn(s.state, name, tag);
+        if (result.ok) {
+          set({ state: result.state });
+          playSound('upgrade');
+        } else {
+          playSound('error');
+        }
+        return result.ok;
+      },
+
+      leaveGuild: () => {
+        const s = get();
+        const next = leaveGuildFn(s.state);
+        set({ state: next });
+        playSound('error');
+      },
+
+      sendGuildMessage: (text) => {
+        const s = get();
+        const result = sendGuildMsgFn(s.state, text);
+        if (result.state !== s.state) {
+          set({ state: result.state });
+        }
+      },
+
+      declareGuildWar: (rivalIndex) => {
+        const s = get();
+        const result = declareWarFn(s.state, rivalIndex);
+        if (!result.ok) {
+          playSound('error');
+          return { success: false, won: false, goldGained: 0, reason: result.reason };
+        }
+        set({ state: result.state });
+        playSound(result.won ? 'victory' : 'defeat');
+        return { success: true, won: result.won, goldGained: result.goldGained };
+      },
+
+      tradeResources: (giveType, giveQty, getType) => {
+        const s = get();
+        const result = tradeFn(s.state, giveType, giveQty, getType);
+        if (result.ok) {
+          set({ state: result.state });
+          playSound('loot');
+        } else {
+          playSound('error');
+        }
+        return { success: result.ok, received: result.received, reason: result.reason };
+      },
+
+      // -----------------------------------------------------------------
       // MISC
       // -----------------------------------------------------------------
       refreshOpponents: async () => {
@@ -665,6 +762,9 @@ export const useGameStore = create<GameStore>()(
             items: currentState.inventory?.items ?? current.state.inventory.items,
             trinkets: currentState.inventory?.trinkets ?? current.state.inventory.trinkets ?? {},
           },
+          check_in: currentState.check_in ?? current.state.check_in,
+          campaign: currentState.campaign ?? current.state.campaign,
+          guild: currentState.guild ?? current.state.guild,
           resources: { ...current.state.resources, ...(currentState.resources ?? {}) },
           player: { ...current.state.player, ...(currentState.player ?? {}) },
           army: { ...current.state.army, ...(currentState.army ?? {}) },

@@ -254,6 +254,12 @@ export interface GameState {
   cave: CaveState;
   /** Monster-item inventory + market. */
   inventory: InventoryState;
+  /** 30-day daily check-in calendar. */
+  check_in: import('./check-in').CheckInState;
+  /** 30-day permanent quest progression. */
+  campaign: CampaignState;
+  /** Guild system (player's guild membership + messages). */
+  guild: GuildState;
 }
 
 /** Arena PvP stamina. Regenerates 1 per 3 hours, max 5. */
@@ -379,6 +385,65 @@ export interface TrinketBonus {
   type: TrinketBonusType;
   label: string;
   icon: string;
+}
+
+/** 30-day permanent campaign quest progression. */
+export interface CampaignState {
+  /** Which day (1-30) the player is currently on. */
+  current_day: number;
+  /** Set of completed day-quest IDs (e.g. "day_5"). */
+  completed: string[];
+  /** Epoch ms when the campaign was started. */
+  started_at: number;
+}
+
+/** A single 30-day campaign quest definition (static). */
+export interface CampaignQuestDef {
+  day: number;
+  title: string;
+  description: string;
+  /** Tracker stat key. */
+  tracker: keyof import('./types').CareerStats;
+  /** Goal for this day's quest. */
+  goal: number;
+  /** Reward. */
+  reward: { gold: number; refined_wood: number; refined_iron: number; xp: number };
+  icon: string;
+}
+
+/** Guild system state. */
+export interface GuildState {
+  /** Guild ID (null = not in a guild). */
+  guild_id: string | null;
+  /** Guild name. */
+  guild_name: string | null;
+  /** Guild tag (3-4 chars). */
+  guild_tag: string | null;
+  /** Guild chat messages (most recent first). */
+  messages: GuildMessage[];
+  /** Guild members (NPC-generated for solo play). */
+  members: GuildMember[];
+  /** Epoch ms of last guild war. */
+  last_war_at: number | null;
+}
+
+export interface GuildMessage {
+  id: string;
+  author: string;
+  avatar: string;
+  text: string;
+  timestamp: number;
+  is_player: boolean;
+}
+
+export interface GuildMember {
+  id: string;
+  name: string;
+  avatar: string;
+  level: number;
+  power: number;
+  role: 'leader' | 'officer' | 'member';
+  is_player?: boolean;
 }
 
 /**

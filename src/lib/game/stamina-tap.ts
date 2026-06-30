@@ -97,6 +97,19 @@ export function refillStamina(state: GameState): GameState {
   };
 }
 
+/** Add 1 stamina (capped at max). Used by the rewarded-ad hook. */
+export function addOneStamina(state: GameState): GameState {
+  const st = state.arena_stamina;
+  if (st.current >= st.max) return state;
+  return {
+    ...state,
+    arena_stamina: {
+      ...st,
+      current: Math.min(st.max, st.current + 1),
+    },
+  };
+}
+
 /** Format the stamina regen countdown as HH:MM:SS. */
 export function staminaCountdownLabel(state: GameState): string {
   const st = state.arena_stamina;
@@ -123,7 +136,7 @@ function pad(n: number): string {
 // ===========================================================================
 
 /** Tap-node cooldown (ms) between collects. */
-export const TAP_COOLDOWN_MS = 5 * 1000; // 5 seconds
+export const TAP_COOLDOWN_MS = 0; // No cooldown — players can tap freely
 
 /** Create fresh tap-node state. */
 export function createInitialTapNodes(): TapNodesState {

@@ -28,6 +28,8 @@ import { BaseCamp } from "@/components/game/BaseCamp";
 import { BarracksForge } from "@/components/game/BarracksForge";
 import { Arena } from "@/components/game/Arena";
 import { CaveHuntingPanel } from "@/components/game/CaveHuntingPanel";
+import { CampaignPanel } from "@/components/game/CampaignPanel";
+import { GuildPanel } from "@/components/game/GuildPanel";
 import { QuestsPanel } from "@/components/game/QuestsPanel";
 import { StatsPanel } from "@/components/game/StatsPanel";
 import { LeaderboardPanel } from "@/components/game/LeaderboardPanel";
@@ -62,6 +64,8 @@ import {
   Flag,
   TreePine,
   Skull,
+  Calendar,
+  Users,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -71,6 +75,8 @@ const TABS = [
   { value: "barracks", label: "Barracks & Forge", short: "Forge", icon: Hammer },
   { value: "arena", label: "Arena", short: "Arena", icon: Swords },
   { value: "cave", label: "Cave Hunt", short: "Cave", icon: Skull },
+  { value: "campaign", label: "Campaign", short: "Day", icon: Calendar },
+  { value: "guild", label: "Guild", short: "Guild", icon: Users },
   { value: "quests", label: "Quests", short: "Quests", icon: ScrollText },
   { value: "stats", label: "Stats", short: "Stats", icon: BarChart3 },
   { value: "leaderboard", label: "Leaderboard", short: "Ranks", icon: Trophy },
@@ -160,6 +166,8 @@ export default function Home() {
               {tab === "barracks" && <BarracksForge />}
               {tab === "arena" && <Arena />}
               {tab === "cave" && <CaveHuntingPanel />}
+              {tab === "campaign" && <CampaignPanel />}
+              {tab === "guild" && <GuildPanel />}
               {tab === "quests" && <QuestsPanel />}
               {tab === "stats" && <StatsPanel />}
               {tab === "leaderboard" && <LeaderboardPanel />}

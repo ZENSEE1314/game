@@ -15,6 +15,8 @@ interface StatChipProps {
   className?: string;
   /** Optional small sub-text rendered under the value (e.g. a rate). */
   sub?: string;
+  /** Optional tooltip text shown on hover (defaults to label). */
+  tooltip?: string;
 }
 
 const toneStyles: Record<
@@ -54,10 +56,12 @@ export function StatChip({
   tone = "stone",
   className,
   sub,
+  tooltip,
 }: StatChipProps) {
   const t = toneStyles[tone];
   return (
     <div
+      title={tooltip ?? label}
       className={cn(
         "flex items-center gap-2.5 rounded-lg border px-3 py-1.5 backdrop-blur-sm",
         t.wrap,

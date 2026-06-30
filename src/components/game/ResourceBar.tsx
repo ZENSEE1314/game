@@ -112,6 +112,7 @@ export function ResourceBar() {
             value={formatNumber(resources.wood.current_amount)}
             tone="emerald"
             sub={`+${resources.wood.raw_per_sec.toFixed(1)}/s`}
+            tooltip={`Wood — ${formatNumber(resources.wood.current_amount)} raw, ${formatNumber(resources.wood.refined_amount)} refined (+${resources.wood.processing_rate.toFixed(1)}/s)`}
           />
           <StatChip
             icon={<Mountain />}
@@ -119,6 +120,7 @@ export function ResourceBar() {
             value={formatNumber(resources.stone.current_amount)}
             tone="stone"
             sub={`+${resources.stone.raw_per_sec.toFixed(1)}/s`}
+            tooltip={`Stone — ${formatNumber(resources.stone.current_amount)} raw, ${formatNumber(resources.stone.refined_amount)} refined (+${resources.stone.processing_rate.toFixed(1)}/s)`}
           />
           <StatChip
             icon={<Anvil />}
@@ -126,12 +128,14 @@ export function ResourceBar() {
             value={formatNumber(resources.iron.current_amount)}
             tone="amber"
             sub={`+${resources.iron.raw_per_sec.toFixed(1)}/s`}
+            tooltip={`Iron — ${formatNumber(resources.iron.current_amount)} raw, ${formatNumber(resources.iron.refined_amount)} refined (+${resources.iron.processing_rate.toFixed(1)}/s)`}
           />
           <StatChip
             icon={<Users />}
             label="Troops"
             value={`${army.active_troops}/${army.max_troop_capacity}`}
             tone="rose"
+            tooltip={`Standing Army — ${army.active_troops} troops (max ${army.max_troop_capacity})`}
           />
           <StatChip
             icon={<Sword />}
@@ -139,6 +143,7 @@ export function ResourceBar() {
             value={`${gear.weapon_count}`}
             tone="amber"
             sub={`T${gear.weapon_tier_level}`}
+            tooltip={`Arsenal — ${gear.weapon_count} weapons, Tier ${gear.weapon_tier_level} (ATK ×${gear.weapon_multipliers.attack_mult.toFixed(2)}, DEF ×${gear.weapon_multipliers.defense_mult.toFixed(2)})`}
           />
           {/* Vault indicator on mobile-only row */}
           <Badge

@@ -19,7 +19,7 @@ import * as React from "react";
 import { useGameStore } from "@/lib/game/store";
 import { formatNumber, LOOT_RATE } from "@/lib/game/constants";
 import { shieldRemainingLabel } from "@/lib/game/ads";
-import { staminaCountdownLabel, ARENA_STAMINA_MAX } from "@/lib/game/stamina-tap";
+import { staminaCountdownLabel } from "@/lib/game/stamina-tap";
 import { previewCombat, projectPlayer, projectOpponent, type CombatPreview } from "@/lib/game/pvp";
 import type { Opponent, BattleRecord } from "@/lib/game/types";
 import { Card } from "@/components/ui/card";
@@ -192,6 +192,66 @@ function ShieldPanel() {
   );
 }
 
+/**
+ * RevealOddsBar — shows the battle odds ONLY after the player watches
+ * an ad. Before that, shows a "Reveal Odds (Ad)" button. The revealed
+ * state is per-opponent (tracked locally by oppId).
+ */
+function RevealOddsBar({ preview, oppId }: { preview: CombatPreview; oppId: string }) {
+  const [revealed, setRevealed] = React.useState<Set<string>>(() => {
+    try {
+      const saved = sessionStorage.getItem('idle-war-revealed-odds');
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+  const [adOpen, setAdOpen] = React.useState(false);
+
+  const isRevealed = revealed.has(oppId);
+
+  const handleReveal = () => {
+    const next = new Set(revealed);
+    next.add(oppId);
+    setRevealed(next);
+    try {
+      sessionStorage.setItem('idle-war-revealed-odds', JSON.stringify([...next]));
+    } catch {
+      // ignore
+    }
+    setAdOpen(false);
+  };
+
+  if (isRevealed) {
+    return <BattleOddsBar preview={preview} />;
+  }
+
+  return (
+    <>
+      <div className="mt-1.5 flex items-center gap-2">
+        <Button
+          onClick={() => setAdOpen(true)}
+          size="sm"
+          variant="outline"
+          className="h-6 gap-1 border-amber-800/60 bg-amber-950/30 px-2 text-[10px] text-amber-300 hover:bg-amber-900/40 hover:text-amber-200"
+        >
+          <Zap className="size-3" />
+          Reveal Odds (Ad)
+        </Button>
+        <span className="text-[10px] text-stone-500">Intel unknown — scout to reveal</span>
+      </div>
+      <AdModal
+        open={adOpen}
+        onClose={() => setAdOpen(false)}
+        onRewarded={handleReveal}
+        title="Scout Intel"
+        description="Watch this message to reveal the battle odds for this opponent."
+        rewardLabel="Battle Odds Revealed"
+      />
+    </>
+  );
+}
+
 function OpponentCard({ opp }: { opp: Opponent }) {
   const attack = useGameStore((s) => s.attackOpponent);
   const state = useGameStore((s) => s.state);
@@ -246,14 +306,14 @@ function OpponentCard({ opp }: { opp: Opponent }) {
             </Button>
           </div>
 
-          {/* Troops + weapons row */}
+          {/* Troops + weapons row — troop count HIDDEN (intel unknown) */}
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px]">
             <Badge
               variant="outline"
               className="border-rose-900/40 bg-rose-950/30 text-rose-300"
             >
               <Users className="mr-1 size-3" />
-              {opp.army.active_troops} troops
+              ??? troops
             </Badge>
             <Badge
               variant="outline"
@@ -270,8 +330,8 @@ function OpponentCard({ opp }: { opp: Opponent }) {
             </Badge>
           </div>
 
-          {/* Battle odds mini-bar (combat preview) */}
-          <BattleOddsBar preview={preview} />
+          {/* Battle odds — gated behind a "Reveal Odds" ad */}
+          <RevealOddsBar preview={preview} oppId={opp.id} />
 
           {/* Potential loot (flex-wrap, slightly larger per VLM feedback) */}
           <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-stone-400">
@@ -449,7 +509,7 @@ function StaminaPanel() {
             className="gap-1 bg-amber-600 text-amber-50 shadow-md shadow-amber-900/40 hover:bg-amber-500"
           >
             <Zap className="size-3.5" />
-            Refill (Ad)
+            +1 Stamina (Ad)
           </Button>
         </div>
       </Card>
@@ -459,13 +519,13 @@ function StaminaPanel() {
         onClose={() => setAdOpen(false)}
         onRewarded={() => {
           refill();
-          toast.success("Stamina refilled!", {
-            description: `Back to ${ARENA_STAMINA_MAX} arena attacks.`,
+          toast.success("+1 Arena Stamina!", {
+            description: "Watch again for another point.",
           });
         }}
-        title="Stamina Refill"
-        description="Watch this short message to instantly refill your arena stamina to full."
-        rewardLabel={`Full ${ARENA_STAMINA_MAX} Stamina`}
+        title="Stamina Boost"
+        description="Watch this short message to gain +1 arena stamina. Watch multiple times for more!"
+        rewardLabel="+1 Stamina"
       />
     </>
   );

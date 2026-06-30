@@ -98,6 +98,26 @@ export function createInitialState(): GameState {
     },
     inventory: {
       items: {},
+      trinkets: {},
+    },
+    check_in: {
+      current_day: 0,
+      last_claimed_at: null,
+      total_claims: 0,
+      streak: 0,
+    },
+    campaign: {
+      current_day: 1,
+      completed: [],
+      started_at: Date.now(),
+    },
+    guild: {
+      guild_id: null,
+      guild_name: null,
+      guild_tag: null,
+      messages: [],
+      members: [],
+      last_war_at: null,
     },
   };
 

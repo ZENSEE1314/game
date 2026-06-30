@@ -506,3 +506,81 @@ The game has 9 tabs with arena stamina, tap nodes, cave hunting, market, events,
 3. **Tool upgrade prestige** — make tool levels persist through rebirth.
 4. **More node types** — fishing pond, herb garden.
 5. **Crafting recipe discovery** — unlock recipes via achievements or cave tiers.
+
+---
+Task ID: 12 (User-driven features: bug fixes + 30-day systems + guild)
+Agent: Main Architect
+Task: Fix gathering upgrade bug, remove tap cooldown, arena ad=+1 stamina, resource tooltips, hide opponent troops + gate odds behind ad, 30-day daily check-in, 30-day campaign quests, guild system with chat/war/trade. Leaderboard confirmed still present.
+
+## Current Project Status Assessment
+User reported multiple issues and requested new features. QA confirmed: (1) gathering tool upgrades were broken (store checked `result.success` but `upgradeTool` returns `result.ok`), (2) tap cooldown was 5s, (3) arena ad gave full refill, (4) opponent troop counts were visible, (5) battle odds were always visible, (6) no resource tooltips. User also requested 30-day check-in, 30-day permanent quests, guild system, and trade. Leaderboard was NOT removed (still present as tab #10).
+
+## Completed Modifications This Round
+
+### 1. BUG FIX: Gathering tool upgrade not working
+- `src/lib/game/store.ts` — `upgradeToolLevel` was checking `result.success` but `upgradeTool()` returns `{ state, ok, reason }`. Fixed to check `result.ok`. Verified: clicking "Upgrade Axe" now succeeds.
+
+### 2. BUG FIX: Remove 5s tap cooldown
+- `src/lib/game/stamina-tap.ts` — `TAP_COOLDOWN_MS` changed from `5 * 1000` to `0`. Players can now tap freely without waiting.
+
+### 3. BUG FIX: Arena ad gives +1 stamina (not full refill)
+- `src/lib/game/stamina-tap.ts` — added `addOneStamina(state)` function (adds 1, capped at max).
+- `src/lib/game/store.ts` — `refillStaminaAd` now calls `addOneStamina` instead of `refillStamina`.
+- `src/components/game/Arena.tsx` — button text changed to "+1 Stamina (Ad)", ad title "Stamina Boost", description "Watch multiple times for more!"
+
+### 4. UI: Resource tooltips on hover
+- `src/components/game/ui/StatChip.tsx` — added `tooltip` prop (defaults to label), rendered as `title` attribute.
+- `src/components/game/ResourceBar.tsx` — all 5 resource chips now have descriptive tooltips showing raw + refined amounts + rates (e.g. "Wood — 120 raw, 60 refined (+0.5/s)").
+
+### 5. UI: Hide opponent troops + gate battle odds behind ad
+- `src/components/game/Arena.tsx` — opponent troop count changed from `{opp.army.active_troops} troops` to `??? troops`.
+- Added `RevealOddsBar` component: shows "Reveal Odds (Ad)" button + "Intel unknown" text. After watching an ad, the battle odds bar is revealed for that opponent (tracked in sessionStorage per oppId).
+
+### 6. NEW FEATURE: 30-day Daily Check-In (`src/lib/game/check-in.ts`)
+- `CHECK_IN_REWARDS` — 30 daily rewards scaling from 100 gold (day 1) to Dragon Heart epic item (day 30). Milestone days 7/15/21/30 are special.
+- `CheckInState` — current_day, last_claimed_at, total_claims, streak.
+- `canClaimCheckIn(state, now)` — once per calendar day (24h check).
+- `claimCheckIn(state, now)` — applies reward (gold/refined/troops/prestige/rare_item), advances day, manages streak.
+- Wired into store: `claimDailyCheckIn()` method.
+
+### 7. NEW FEATURE: 30-day Permanent Campaign (`src/lib/game/campaign.ts`)
+- `CAMPAIGN_QUESTS` — 30 linear quests tracking career stat milestones (Day 1: upgrade 1 facility → Day 30: win 50 battles). Rewards scale from 100 gold to 5000 gold + 200 refined wood + 150 refined iron + 300 XP.
+- `CampaignState` — current_day, completed[], started_at. Persists through rebirth.
+- `campaignProgress(state)` — computes current/goal/pct from the current quest's tracker stat.
+- `claimCampaign(state)` — claims reward, advances to next day.
+- Wired into store: `claimCampaignQuest()` method.
+
+### 8. NEW FEATURE: Guild System (`src/lib/game/guild.ts`)
+- `GuildState` — guild_id, name, tag, messages[], members[], last_war_at.
+- `createGuild(state, name, tag)` — validates name (3+ chars) + tag (2-4 chars), generates 4-6 NPC members + player as leader, adds welcome message.
+- `sendGuildMessage(state, text)` — adds player message; 40% chance an NPC responds.
+- `getRivalGuilds(state)` — 5 NPC rival guilds scaled to player level.
+- `declareGuildWar(state, rivalIndex)` — resolves based on guild power vs rival power (1h cooldown). Victory loots gold; defeat posts a message.
+- `tradeResources(state, giveType, giveQty, getType)` — exchanges resources at 10% tax (rates: gold=1.0, wood=0.5, stone=0.5, iron=1.5).
+- Wired into store: `createGuild`, `leaveGuild`, `sendGuildMessage`, `declareGuildWar`, `tradeResources` methods.
+
+### 9. NEW UI: Campaign + Guild tabs (2 new tabs, total 11)
+- `src/components/game/CampaignPanel.tsx` (NEW) — Daily Check-In card (30-day reward grid with claimed/today/locked states, streak counter, Claim button) + 30-Day Campaign card (current quest with progress bar, reward preview, Claim button, 30-day completion strip).
+- `src/components/game/GuildPanel.tsx` (NEW) — If no guild: create form (name + tag inputs). If in guild: guild stats (members/power/wars), members list with roles, guild chat (send + NPC replies), guild war (5 rival guilds with War buttons), resource trading (give/get selectors + qty + estimated receive).
+- `src/app/page.tsx` — added Campaign (Calendar icon) + Guild (Users icon) tabs. Total now 11 tabs.
+
+### 10. Schema: merge backfill for new fields
+- `src/lib/game/store.ts` — merge function backfills `check_in`, `campaign`, `guild` for old saves.
+- `src/lib/game/initial-state.ts` — seeds all new fields with defaults.
+
+## Verification Results
+- `bun run lint` — clean (0 errors).
+- agent-browser QA: Gathering upgrade works ("Axe upgraded!"). Tap nodes have no cooldown (3 rapid taps succeeded). Arena "+1 Stamina (Ad)" gives +1 (4→5, not full refill). Campaign tab shows Daily Check-In grid + "Claim Day 1" (claimed 100 gold) + 30-Day Campaign quest "First Steps". Guild tab: created "Iron Wolves [IRW]" with 5 members, chat, 5 rival guilds, trade panel. Leaderboard tab confirmed still present.
+- No runtime errors after reload.
+- Dev log: all 200 responses.
+
+## Unresolved Issues / Risks
+- None blocking. All user-requested features implemented.
+- Note: the leaderboard was never removed — it's tab #10 of 11. The user may have missed it due to the tab bar being scrollable on mobile.
+
+## Priority Recommendations for Next Phase
+1. **Guild war rewards** — currently only gold; add guild-specific currency or items.
+2. **Guild upgrades** — spend gold to upgrade guild hall for member cap + power bonus.
+3. **Market buy tab** — purchase upgrade materials with gold.
+4. **Crafting recipe discovery** — unlock recipes via campaign progression.
+5. **Notification for daily check-in** — a badge/pulse on the Campaign tab when a claim is available.
