@@ -402,3 +402,46 @@ User reported a hydration mismatch error (browser extension adding style attribu
 3. **Tool upgrade prestige** — make tool levels persist through rebirth (currently reset).
 4. **Stamina for cave entries** — consider a shared energy system or keep separate.
 5. **More node types** — fishing pond, herb garden for alchemy recipes.
+
+---
+Task ID: 10 (webDevReview round 4 — UX polish + market improvements)
+Agent: Main Architect
+Task: Recurring webDevReview — QA, fix the #1 priority (cave hunt result modal), add bulk-sell to market, and add tap-feedback animations.
+
+## Current Project Status Assessment
+The game has 9 tabs (Gathering, Base Camp, Barracks/Forge, Arena, Cave Hunt, Quests, Stats, Leaderboard, Prestige) with arena stamina, tap nodes, cave hunting, market, events, prestige, and sound all working. QA confirmed no runtime errors. The #1 recommended improvement from the previous round was the cave hunt result modal — currently the UI shows a generic "Check your inventory" toast instead of the specific loot. This is a significant UX gap since the player doesn't know what they got (or if they failed) without switching to the inventory.
+
+## Completed Modifications This Round
+
+### 1. FIX: Cave hunt result modal (was #1 priority)
+- `src/lib/game/store.ts` — updated `huntCave` interface + implementation to return `{ success, reason?, result?, caveName? }` instead of just `{ success, reason? }`. The `result` (CaveHuntResult) + `caveName` are now returned so the UI can show the specific outcome.
+- `src/components/game/CaveHuntingPanel.tsx` — added `HuntResultModal` component:
+  - Success state: green check circle (spring-bounce animation), "HUNT SUCCESSFUL!" label, the specific item card (avatar + name + rarity badge + ×quantity + total gold value), rarity-tinted border/background.
+  - Failure state: red X circle, "HUNT FAILED" label, "The monster escaped. You got nothing this time." message.
+  - Framer Motion spring entrance for the result icon + staggered fade-in for the item card.
+  - Close button.
+- Removed the generic "Check your inventory" toast; replaced with the modal that shows exactly what happened.
+
+### 2. NEW FEATURE: Bulk sell in market
+- `src/lib/game/store.ts` — added `sellAllItems(rarity?)` store method. Sells all items (optionally filtered by rarity) in one operation, returning `{ goldGained, count }`. Iterates the inventory, calls `sellItem` for each, accumulates gold + count.
+- `src/components/game/CaveHuntingPanel.tsx` — added a "Sell All" button in the Inventory & Market header. On click, calls `sellAll()` and toasts "Sold N items +X gold" (or "Nothing to sell" if empty).
+
+### 3. STYLING: Tap feedback animation
+- `src/components/game/TapNodesPanel.tsx` — added a floating "+yield" text animation on each tap. When the player taps a node, a Framer Motion `motion.div` renders the yield text (e.g. "+5 🪵") that floats up 40px while fading in/out over 1 second, with an amber glow drop-shadow. Uses a `floatId` state key to re-trigger the animation on each tap.
+
+## Verification Results
+- `bun run lint` — clean (0 errors).
+- agent-browser QA: cave hunt result modal shows "HUNT SUCCESSFUL!" with item details (🦁 Lion Skin, UNCOMMON, ×1, Worth 150 gold) on success, and "HUNT FAILED" with escape message on failure. "Sell All" button sold all items (gold 569→719, +150). Tap nodes show floating yield text on tap.
+- No runtime errors, no hydration errors, all 9 tabs functional.
+- Dev log: all 200 responses.
+
+## Unresolved Issues / Risks
+- None blocking. The cave hunt flow is now complete with a satisfying result modal.
+- Minor: the floating tap text only shows on the gatherer's own tap (not on passive ticks); this is intentional for active-play feedback.
+
+## Priority Recommendations for Next Phase
+1. **Market buy tab** — currently only sell; add a buy tab where players can purchase upgrade materials or rare items with gold.
+2. **Tool upgrade prestige** — make tool levels persist through rebirth (currently reset).
+3. **Crafting** — combine monster items into permanent gear upgrades (e.g. 10 Wolf Teeth → +1% attack trinket).
+4. **Cave entry via ad** — allow 1 extra daily cave entry via a rewarded ad.
+5. **More node types** — fishing pond, herb garden for alchemy recipes.

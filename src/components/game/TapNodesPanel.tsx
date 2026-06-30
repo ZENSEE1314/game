@@ -150,12 +150,23 @@ function NodeCard({
     state.resources.iron.refined_amount >= cost.refined_iron &&
     state.resources.wood.refined_amount >= cost.refined_wood;
 
+  // Floating "+yield" text on each successful tap.
+  const [floatId, setFloatId] = React.useState(0);
+  const [floatText, setFloatText] = React.useState("");
+
+  const handleTap = () => {
+    const text = formatTapYield(y);
+    setFloatText(text);
+    setFloatId((n) => n + 1);
+    onTap();
+  };
+
   return (
     <Card className={cn("relative overflow-hidden border bg-gradient-to-b p-4", node.accent)}>
       {/* Tappable node image */}
       <button
         type="button"
-        onClick={onTap}
+        onClick={handleTap}
         disabled={!ready}
         className={cn(
           "group relative flex w-full items-center justify-center rounded-lg bg-stone-950/50 p-2 transition-all",
@@ -183,6 +194,18 @@ function NodeCard({
           <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-stone-950/70">
             <span className="font-mono text-lg font-bold text-amber-300 tabular-nums">{cdLabel}</span>
           </div>
+        )}
+        {/* Floating "+yield" text on tap */}
+        {floatId > 0 && floatText && (
+          <motion.div
+            key={floatId}
+            initial={{ opacity: 0, y: 0, scale: 0.8 }}
+            animate={{ opacity: [0, 1, 1, 0], y: -40, scale: 1 }}
+            transition={{ duration: 1, ease: "easeOut" }}
+            className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 text-sm font-bold text-amber-200 drop-shadow-[0_0_8px_rgba(251,191,36,0.8)]"
+          >
+            {floatText}
+          </motion.div>
         )}
       </button>
 

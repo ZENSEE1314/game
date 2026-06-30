@@ -51,6 +51,8 @@ import {
   reconcileCave,
   performCaveHunt,
   sellItem,
+  CAVES,
+  getItem,
 } from './cave-market';
 
 interface PendingOffline {
@@ -142,8 +144,9 @@ export interface GameStore {
   refillStaminaAd: () => void;
   tapResourceNode: (node: 'tree' | 'mine' | 'farm') => boolean;
   upgradeToolLevel: (tool: 'axe' | 'pickaxe' | 'sickle') => boolean;
-  huntCave: (caveId: string) => { success: boolean; reason?: string };
+  huntCave: (caveId: string) => { success: boolean; reason?: string; result?: import('./types').CaveHuntResult; caveName?: string };
   sellInventoryItem: (itemId: string, quantity: number) => boolean;
+  sellAllItems: (rarity?: import('./types').ItemRarity) => { goldGained: number; count: number };
 
   // --- Misc -------------------------------------------------------------
   refreshOpponents: () => Promise<void>;
@@ -497,7 +500,8 @@ export const useGameStore = create<GameStore>()(
         }
         set({ state: result.state });
         playSound(result.result.success ? 'loot' : 'error');
-        return { success: true };
+        const caveName = CAVES.find((c) => c.id === caveId)?.name ?? 'Unknown Cave';
+        return { success: true, result: result.result, caveName };
       },
 
       sellInventoryItem: (itemId, quantity) => {
@@ -510,6 +514,31 @@ export const useGameStore = create<GameStore>()(
           playSound('error');
         }
         return result.ok;
+      },
+
+      sellAllItems: (rarity) => {
+        const s = get();
+        const items = s.state.inventory.items;
+        let totalGold = 0;
+        let totalCount = 0;
+        let state = s.state;
+        for (const [itemId, qty] of Object.entries(items)) {
+          if (qty <= 0) continue;
+          const item = getItem(itemId);
+          if (!item) continue;
+          if (rarity && item.rarity !== rarity) continue;
+          const r = sellItem(state, itemId, qty);
+          if (r.ok) {
+            state = r.state;
+            totalGold += r.goldGained;
+            totalCount += qty;
+          }
+        }
+        if (totalCount > 0) {
+          set({ state });
+          playSound('loot');
+        }
+        return { goldGained: totalGold, count: totalCount };
       },
 
       // -----------------------------------------------------------------

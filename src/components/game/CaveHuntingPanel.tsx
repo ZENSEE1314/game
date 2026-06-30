@@ -16,28 +16,39 @@ import {
   canEnterCave,
   caveCooldownLabel,
   CAVE_MAX_ENTRIES_PER_DAY,
-  MONSTER_ITEMS,
   rarityColor,
-  performCaveHunt,
   getItem,
 } from "@/lib/game/cave-market";
 import { formatNumber } from "@/lib/game/constants";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { UpgradeButton } from "@/components/game/ui/UpgradeButton";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { Skull, Clock, Zap, Package, Coins, Star } from "lucide-react";
+import { Skull, Clock, Zap, Package, Coins, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CaveHuntResult } from "@/lib/game/types";
+
+interface HuntModalData {
+  result: CaveHuntResult;
+  caveName: string;
+}
 
 export function CaveHuntingPanel() {
   const state = useGameStore((s) => s.state);
   const hunt = useGameStore((s) => s.huntCave);
   const sell = useGameStore((s) => s.sellInventoryItem);
+  const sellAll = useGameStore((s) => s.sellAllItems);
   const [, force] = React.useReducer((x) => x + 1, 0);
-  const [lastResult, setLastResult] = React.useState<CaveHuntResult | null>(null);
+  const [modalData, setModalData] = React.useState<HuntModalData | null>(null);
 
   // Re-render every second for cooldown timers.
   React.useEffect(() => {
@@ -56,12 +67,10 @@ export function CaveHuntingPanel() {
       toast.error(`Can't enter ${caveName}`, { description: r.reason ?? "Unknown reason" });
       return;
     }
-    // We need the result — re-fetch from a fresh performCaveHunt on current state
-    // is wrong; instead, the store should return it. For now, infer from inventory diff.
-    // Simpler: the store's huntCave doesn't return the result. Let's compute a result
-    // preview by re-running the logic read-only... but that's non-deterministic.
-    // Best: update the store to return the result. For now, toast a generic success.
-    toast.success(`Hunting in ${caveName}...`, { description: "Check your inventory for loot." });
+    // Show the result modal with the specific loot (or failure).
+    if (r.result) {
+      setModalData({ result: r.result, caveName: r.caveName ?? caveName });
+    }
   };
 
   return (
@@ -158,6 +167,22 @@ export function CaveHuntingPanel() {
             Inventory & Market
           </span>
           <div className="h-px flex-1 bg-stone-800/60" />
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-6 gap-1 border-amber-800/60 bg-amber-950/30 px-2 text-[10px] text-amber-300 hover:bg-amber-900/40 hover:text-amber-200"
+            onClick={() => {
+              const r = sellAll();
+              if (r.count > 0) {
+                toast.success(`Sold ${r.count} items`, { description: `+${formatNumber(r.goldGained)} gold` });
+              } else {
+                toast.error("Nothing to sell");
+              }
+            }}
+          >
+            <Coins className="size-3" />
+            Sell All
+          </Button>
         </div>
         <InventoryGrid onSell={(itemId, qty, name, gold) => {
           const ok = sell(itemId, qty);
@@ -168,7 +193,90 @@ export function CaveHuntingPanel() {
           }
         }} />
       </div>
+
+      {/* Hunt result modal */}
+      <HuntResultModal data={modalData} onClose={() => setModalData(null)} />
     </div>
+  );
+}
+
+function HuntResultModal({ data, onClose }: { data: HuntModalData | null; onClose: () => void }) {
+  if (!data) return null;
+  const { result, caveName } = data;
+  const item = result.item_id ? getItem(result.item_id) : null;
+  const rc = item ? rarityColor(item.rarity) : null;
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-sm border-stone-700 bg-stone-950 p-0 text-stone-100">
+        <DialogHeader className="gap-1 border-b border-stone-800 p-4">
+          <DialogTitle className="flex items-center gap-2 text-amber-100">
+            <Skull className="size-5 text-rose-400" />
+            Hunt Result
+          </DialogTitle>
+          <DialogDescription className="text-stone-400">
+            {caveName}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex flex-col items-center gap-3 p-6">
+          {result.success ? (
+            <>
+              <motion.div
+                initial={{ scale: 0, rotate: -20 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ type: "spring", stiffness: 200, damping: 12 }}
+                className="flex size-20 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400 ring-2 ring-emerald-500/40"
+              >
+                <Check className="size-10" />
+              </motion.div>
+              <div className="text-center">
+                <div className="text-sm font-bold uppercase tracking-wider text-emerald-300">
+                  Hunt Successful!
+                </div>
+                {item && rc && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className={cn("mt-3 rounded-lg border p-3", rc.border, rc.bg)}
+                  >
+                    <div className="text-4xl">{item.avatar}</div>
+                    <div className={cn("mt-1 text-sm font-bold", rc.text)}>{item.name}</div>
+                    <div className="text-[10px] uppercase tracking-wider text-stone-400">{rc.label}</div>
+                    <div className="mt-1 text-xs text-amber-300">×{result.quantity}</div>
+                    <div className="mt-1 text-[10px] text-stone-500">Worth {formatNumber(item.sell_price * result.quantity)} gold</div>
+                  </motion.div>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", stiffness: 200, damping: 12 }}
+                className="flex size-20 items-center justify-center rounded-full bg-rose-500/15 text-rose-400 ring-2 ring-rose-500/40"
+              >
+                <X className="size-10" />
+              </motion.div>
+              <div className="text-center">
+                <div className="text-sm font-bold uppercase tracking-wider text-rose-300">
+                  Hunt Failed
+                </div>
+                <div className="mt-1 text-xs text-stone-400">
+                  The monster escaped. You got nothing this time.
+                </div>
+              </div>
+            </>
+          )}
+
+          <Button onClick={onClose} className="mt-2 w-full bg-stone-200 text-stone-900 hover:bg-stone-100">
+            Close
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
