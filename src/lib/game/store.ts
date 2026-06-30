@@ -36,6 +36,7 @@ import {
   doRecordOfflineReturn,
 } from './actions';
 import { rollDailyQuests, questsExpired, checkAchievements } from './quests';
+import { performRebirth, allocatePerk, previewPrestigeGain, canRebirth } from './prestige';
 
 interface PendingOffline {
   earnings: OfflineEarnings;
@@ -117,6 +118,10 @@ export interface GameStore {
 
   // --- Quests -----------------------------------------------------------
   claimQuest: (questId: string) => boolean;
+
+  // --- Prestige / Rebirth -----------------------------------------------
+  rebirth: () => { success: boolean; pointsGained?: number; reason?: string };
+  allocatePrestigePerk: (perkId: string) => boolean;
 
   // --- Misc -------------------------------------------------------------
   refreshOpponents: () => Promise<void>;
@@ -329,6 +334,43 @@ export const useGameStore = create<GameStore>()(
       },
 
       // -----------------------------------------------------------------
+      // PRESTIGE / REBIRTH
+      // -----------------------------------------------------------------
+      rebirth: () => {
+        const s = get();
+        if (!canRebirth(s.state)) {
+          return { success: false, reason: 'Not enough gold earned this run' };
+        }
+        const pointsGained = previewPrestigeGain(s.state.prestige.current_run_gold);
+        const result = performRebirth(s.state);
+        if (!result.success) {
+          return { success: false, reason: result.reason };
+        }
+        // Re-roll quests for the new run + post-mutate for achievements.
+        const { state, unlocked, completedQuests } = postMutate(result.state);
+        set({
+          state,
+          opponents: generateOpponents(state.player.level),
+          pendingOffline: null,
+          lastBattle: null,
+          offlineAdUsed: false,
+          conscriptionAdUsed: false,
+          newlyUnlocked: unlocked,
+          newlyCompletedQuests: completedQuests,
+        });
+        return { success: true, pointsGained };
+      },
+
+      allocatePrestigePerk: (perkId) => {
+        const s = get();
+        const result = allocatePerk(s.state, perkId);
+        if (result.success) {
+          set({ state: { ...s.state, prestige: result.prestige } });
+        }
+        return result.success;
+      },
+
+      // -----------------------------------------------------------------
       // MISC
       // -----------------------------------------------------------------
       refreshOpponents: async () => {
@@ -401,6 +443,7 @@ export const useGameStore = create<GameStore>()(
           quests_rotated_at: currentState.quests_rotated_at ?? current.state.quests_rotated_at,
           achievements_unlocked: currentState.achievements_unlocked ?? current.state.achievements_unlocked,
           battle_history: currentState.battle_history ?? current.state.battle_history,
+          prestige: currentState.prestige ?? current.state.prestige,
           resources: { ...current.state.resources, ...(currentState.resources ?? {}) },
           player: { ...current.state.player, ...(currentState.player ?? {}) },
           army: { ...current.state.army, ...(currentState.army ?? {}) },

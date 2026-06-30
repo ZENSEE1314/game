@@ -19,6 +19,7 @@
  */
 
 import type { CombatantState, BattleResult, GameState, Opponent } from './types';
+import { trackRunGold } from './prestige';
 import {
   ATTACKER_TROOP_LOSS_RATE,
   ATTACKER_WEAPON_LOSS_RATE,
@@ -191,8 +192,15 @@ export function applyBattleToAttacker(state: GameState, result: BattleResult, op
   if (result.attacker_won) {
     next.stats.total_victories += 1;
     next.stats.total_gold_looted += result.loot.gold;
+    next.stats.total_gold_earned += result.loot.gold;
   } else {
     next.stats.total_defeats += 1;
+  }
+
+  // --- Track run gold for prestige/rebirth calc ------------------------
+  if (result.attacker_won && result.loot.gold > 0) {
+    const tracked = trackRunGold(next, result.loot.gold);
+    next.prestige = tracked.prestige;
   }
 
   return next;

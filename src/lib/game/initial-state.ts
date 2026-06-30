@@ -68,6 +68,14 @@ export function createInitialState(): GameState {
     quests: [],
     quests_rotated_at: 0,
     achievements_unlocked: [],
+    prestige: {
+      rebirth_count: 0,
+      prestige_points: 0,
+      total_prestige_earned: 0,
+      current_run_gold: 0,
+      global_multiplier: 1,
+      perks: {},
+    },
   };
 
   // Initialize the derived rate/capacity fields from facility levels.

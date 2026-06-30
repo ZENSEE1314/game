@@ -6,8 +6,10 @@
  * Composes the full game shell:
  *   - useGameLoop() drives the 1s tick + offline reconciliation.
  *   - ResourceBar (sticky top).
- *   - 5-tab Tabs section (Base Camp / Barracks & Forge / Arena /
- *     Quests / Stats) with subtle Framer Motion fade transitions.
+ *   - 7-tab Tabs section (Base Camp / Barracks & Forge / Arena / Quests /
+ *     Stats / Leaderboard / Prestige) with subtle Framer Motion fade
+ *     transitions. The tab bar is horizontally scrollable on small
+ *     screens so all 7 tabs stay reachable at 375px.
  *   - AmbientGlow orbs behind the main content for atmosphere.
  *   - Page-level modals (OfflineEarningsModal, BattleReportModal).
  *   - NotificationToasts (achievement / quest-completion sonner toasts).
@@ -24,6 +26,8 @@ import { BarracksForge } from "@/components/game/BarracksForge";
 import { Arena } from "@/components/game/Arena";
 import { QuestsPanel } from "@/components/game/QuestsPanel";
 import { StatsPanel } from "@/components/game/StatsPanel";
+import { LeaderboardPanel } from "@/components/game/LeaderboardPanel";
+import { PrestigePanel } from "@/components/game/PrestigePanel";
 import { NotificationToasts } from "@/components/game/NotificationToasts";
 import { AmbientGlow } from "@/components/game/ui/AmbientGlow";
 import { OfflineEarningsModal } from "@/components/game/OfflineEarningsModal";
@@ -48,6 +52,8 @@ import {
   Swords,
   ScrollText,
   BarChart3,
+  Trophy,
+  Sparkles,
   RotateCcw,
   Flag,
 } from "lucide-react";
@@ -59,6 +65,8 @@ const TABS = [
   { value: "arena", label: "Arena", short: "Arena", icon: Swords },
   { value: "quests", label: "Quests", short: "Quests", icon: ScrollText },
   { value: "stats", label: "Stats", short: "Stats", icon: BarChart3 },
+  { value: "leaderboard", label: "Leaderboard", short: "Ranks", icon: Trophy },
+  { value: "prestige", label: "Prestige", short: "Rebirth", icon: Sparkles },
 ] as const;
 
 export default function Home() {
@@ -104,20 +112,25 @@ export default function Home() {
       {/* Main content */}
       <main className="relative z-10 mx-auto w-full max-w-6xl flex-1 px-3 py-4 sm:px-4 sm:py-6">
         <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="gap-3">
-          <div className="flex justify-center">
-            <TabsList className="h-auto gap-1 rounded-lg border border-stone-800/80 bg-stone-900/70 p-1 backdrop-blur">
-              {TABS.map(({ value, label, short, icon: Icon }) => (
-                <TabsTrigger
-                  key={value}
-                  value={value}
-                  className="gap-1.5 rounded-md px-2.5 py-2 text-xs font-medium text-stone-300 data-[state=active]:bg-amber-950/60 data-[state=active]:text-amber-200 data-[state=active]:shadow-inner sm:px-3 sm:text-sm"
-                >
-                  <Icon className="size-4" />
-                  <span className="hidden sm:inline">{label}</span>
-                  <span className="sm:hidden">{short}</span>
-                </TabsTrigger>
-              ))}
-            </TabsList>
+          {/* Tab bar: horizontally scrollable on small screens so all 7
+              tabs remain reachable at 375px. The scroll container hides
+              the scrollbar for a cleaner look. */}
+          <div className="-mx-3 px-3 sm:mx-0 sm:px-0">
+            <div className="overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <TabsList className="flex h-auto w-max gap-1 rounded-lg border border-stone-800/80 bg-stone-900/70 p-1 backdrop-blur">
+                {TABS.map(({ value, label, short, icon: Icon }) => (
+                  <TabsTrigger
+                    key={value}
+                    value={value}
+                    className="gap-1.5 rounded-md px-2.5 py-2 text-xs font-medium text-stone-300 data-[state=active]:bg-amber-950/60 data-[state=active]:text-amber-200 data-[state=active]:shadow-inner sm:px-3 sm:text-sm"
+                  >
+                    <Icon className="size-4 shrink-0" />
+                    <span className="hidden sm:inline">{label}</span>
+                    <span className="sm:hidden">{short}</span>
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </div>
           </div>
 
           <AnimatePresence mode="wait">
@@ -134,6 +147,8 @@ export default function Home() {
               {tab === "arena" && <Arena />}
               {tab === "quests" && <QuestsPanel />}
               {tab === "stats" && <StatsPanel />}
+              {tab === "leaderboard" && <LeaderboardPanel />}
+              {tab === "prestige" && <PrestigePanel />}
             </motion.div>
           </AnimatePresence>
         </Tabs>

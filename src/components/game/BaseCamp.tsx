@@ -25,10 +25,10 @@ import {
 } from "@/lib/game/constants";
 import type { FacilityLevels, ResourceState } from "@/lib/game/types";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ResourceIcon } from "@/components/game/ui/ResourceIcon";
+import { UpgradeButton } from "@/components/game/ui/UpgradeButton";
 import {
   TreePine,
   Mountain,
@@ -314,18 +314,10 @@ function FacilityCard({ meta }: { meta: FacilityMeta }) {
         </div>
       </div>
 
-      <Button
-        onClick={handleUpgrade}
-        disabled={!canAfford}
-        className={`w-full gap-1.5 ${
-          canAfford
-            ? "bg-amber-600 text-amber-50 shadow-md shadow-amber-900/40 hover:bg-amber-500"
-            : "bg-stone-800 text-stone-400 hover:bg-stone-800"
-        }`}
-      >
+      <UpgradeButton canAfford={canAfford} onClick={handleUpgrade}>
         <ArrowUpCircle className="size-4" />
         {canAfford ? "Upgrade" : "Not enough resources"}
-      </Button>
+      </UpgradeButton>
     </Card>
   );
 }

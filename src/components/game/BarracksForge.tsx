@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ResourceIcon } from "@/components/game/ui/ResourceIcon";
+import { UpgradeButton } from "@/components/game/ui/UpgradeButton";
 import {
   Users,
   Sword,
@@ -228,19 +229,14 @@ function BarracksSection() {
           </span>
         </div>
 
-        <Button
+        <UpgradeButton
+          canAfford={canRecruit}
           onClick={handleRecruit}
-          disabled={!canRecruit}
-          className={cn(
-            "mt-3 w-full gap-1.5",
-            canRecruit
-              ? "bg-rose-700 text-rose-50 shadow-md shadow-rose-900/40 hover:bg-rose-600"
-              : "bg-stone-800 text-stone-400 hover:bg-stone-800",
-          )}
+          tone="rose"
         >
           <Users className="size-4" />
           Recruit {count} Troop{count > 1 ? "s" : ""}
-        </Button>
+        </UpgradeButton>
 
         {atCapacity && (
           <div className="mt-2 rounded-md border border-amber-900/40 bg-amber-950/30 px-2.5 py-1.5 text-[11px] text-amber-300">
@@ -395,19 +391,10 @@ function ForgeSection() {
             {formatNumber(forgeCost.refined_iron)}
           </span>
         </div>
-        <Button
-          onClick={handleForge}
-          disabled={!canForge}
-          className={cn(
-            "mt-2 w-full gap-1.5",
-            canForge
-              ? "bg-amber-600 text-amber-50 shadow-md shadow-amber-900/40 hover:bg-amber-500"
-              : "bg-stone-800 text-stone-400 hover:bg-stone-800",
-          )}
-        >
+        <UpgradeButton canAfford={canForge} onClick={handleForge} className="mt-2">
           <Hammer className="size-4" />
           Forge Weapon
-        </Button>
+        </UpgradeButton>
       </div>
 
       {/* Upgrade weapon tier */}
@@ -442,19 +429,14 @@ function ForgeSection() {
         <div className="mt-2 rounded-md border border-emerald-900/30 bg-emerald-950/20 px-2 py-1 text-[11px] text-emerald-300">
           Next: ×{nextTierMult.attack_mult.toFixed(2)} ATK / ×{nextTierMult.defense_mult.toFixed(2)} DEF
         </div>
-        <Button
+        <UpgradeButton
+          canAfford={canUpgradeTier}
           onClick={handleUpgradeTier}
-          disabled={!canUpgradeTier}
-          className={cn(
-            "mt-2 w-full gap-1.5",
-            canUpgradeTier
-              ? "bg-amber-700 text-amber-50 shadow-md shadow-amber-900/40 hover:bg-amber-600"
-              : "bg-stone-800 text-stone-400 hover:bg-stone-800",
-          )}
+          className="mt-2"
         >
           <ArrowUpCircle className="size-4" />
           Upgrade to Tier {gear.weapon_tier_level + 1}
-        </Button>
+        </UpgradeButton>
       </div>
     </Card>
   );

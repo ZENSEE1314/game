@@ -20,6 +20,7 @@ import {
   goldPerSec,
   xpForLevel,
 } from './constants';
+import { perkMultiplier, trackRunGold } from './prestige';
 
 /**
  * Advance a single resource by `seconds`.
@@ -32,13 +33,13 @@ import {
  *
  * Returns a NEW ResourceState (does not mutate input).
  */
-export function tickResource(res: ResourceState, seconds: number): ResourceState {
-  // --- (1) Raw accumulation ---------------------------------------------
-  let raw = res.current_amount + res.raw_per_sec * seconds;
+export function tickResource(res: ResourceState, seconds: number, rawMult = 1, refineMult = 1): ResourceState {
+  // --- (1) Raw accumulation (with prestige multiplier) -----------------
+  let raw = res.current_amount + res.raw_per_sec * rawMult * seconds;
 
-  // --- (2) Processing automation ---------------------------------------
+  // --- (2) Processing automation (with prestige multiplier) ------------
   // Refined we *want* to produce this tick.
-  const desiredRefined = res.processing_rate * seconds;
+  const desiredRefined = res.processing_rate * refineMult * seconds;
   // Raw units that would be consumed to produce `desiredRefined`.
   const rawNeeded = desiredRefined * REFINE_COST_RATIO;
   // Clamp to available raw (can't refine what we don't have).
@@ -59,17 +60,28 @@ export function tickResource(res: ResourceState, seconds: number): ResourceState
  * Apply a full production tick to the whole game state for `seconds`.
  * Used both by the real-time loop (seconds=1) and the offline calc.
  *
- * Also applies passive gold trickle. Mutates a CLONE of the input.
+ * Applies prestige multipliers to raw/refined/gold production and
+ * tracks gold earned during the current run (for the rebirth calc).
+ * Mutates a CLONE of the input.
  */
 export function applyProductionTick(state: GameState, seconds: number): GameState {
   const next: GameState = structuredClone(state);
 
-  next.resources.wood = tickResource(next.resources.wood, seconds);
-  next.resources.stone = tickResource(next.resources.stone, seconds);
-  next.resources.iron = tickResource(next.resources.iron, seconds);
+  // Prestige perk multipliers (1.0 if no points invested).
+  const rawMult = perkMultiplier(next, 'industrious');
+  const refineMult = perkMultiplier(next, 'refining');
+  const goldMult = perkMultiplier(next, 'logistics');
 
-  // Passive gold trickle (based on player level).
-  next.player.gold += goldPerSec(next.player.level) * seconds;
+  next.resources.wood = tickResource(next.resources.wood, seconds, rawMult, refineMult);
+  next.resources.stone = tickResource(next.resources.stone, seconds, rawMult, refineMult);
+  next.resources.iron = tickResource(next.resources.iron, seconds, rawMult, refineMult);
+
+  // Passive gold trickle (with prestige logistics multiplier).
+  const goldGained = goldPerSec(next.player.level) * goldMult * seconds;
+  next.player.gold += goldGained;
+
+  // Track run gold for the rebirth calc.
+  next.prestige = trackRunGold(next, goldGained).prestige;
 
   next.last_saved_at = Date.now();
   return next;

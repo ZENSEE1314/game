@@ -167,6 +167,55 @@ export interface Achievement {
   threshold: number;
 }
 
+/**
+ * Prestige (Rebirth) meta-progression. When a player rebirths, their
+ * facilities/army/resources/gear reset, but they earn Prestige Points
+ * (based on total gold earned that run) that grant permanent multipliers
+ * to ALL production on the next run.
+ */
+export interface PrestigeState {
+  /** Number of times the player has rebirthed. */
+  rebirth_count: number;
+  /** Unspent prestige points available to allocate. */
+  prestige_points: number;
+  /** Total prestige points ever earned (for display). */
+  total_prestige_earned: number;
+  /** Gold earned during the CURRENT run (resets on rebirth). */
+  current_run_gold: number;
+  /** Permanent global production multiplier (derived from spent points). */
+  global_multiplier: number;
+  /** Prestige perk allocations: perk_key -> points spent. */
+  perks: Record<string, number>;
+}
+
+/** A single prestige perk definition. */
+export interface PrestigePerk {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  /** Max points investable. */
+  max_points: number;
+  /** Per-point effect value (e.g. 0.02 = +2% per point). */
+  per_point_value: number;
+  /** What this perk multiplies — used in UI description. */
+  effect_label: string;
+}
+
+/** A leaderboard entry — used for the NPC leaderboard + the player's row. */
+export interface LeaderboardEntry {
+  rank: number;
+  name: string;
+  avatar: string;
+  level: number;
+  victories: number;
+  battles: number;
+  gold_looted: number;
+  power_score: number;
+  is_player: boolean;
+  is_rebirthed?: boolean;
+}
+
 /** The root game state object — the single source of truth. */
 export interface GameState {
   player: PlayerProfile;
@@ -193,7 +242,10 @@ export interface GameState {
   quests_rotated_at: number;
   /** Set of achievement IDs already unlocked. */
   achievements_unlocked: string[];
+  /** Prestige / rebirth meta-progression. */
+  prestige: PrestigeState;
 }
+
 
 
 /** Output of the offline-earnings calculation (before applying). */
