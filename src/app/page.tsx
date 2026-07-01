@@ -66,6 +66,7 @@ import {
   Skull,
   Calendar,
   Users,
+  ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -74,12 +75,12 @@ const TABS = [
   { value: "base", label: "Base Camp", short: "Camp", icon: TentTree },
   { value: "barracks", label: "Barracks & Forge", short: "Forge", icon: Hammer },
   { value: "arena", label: "Arena", short: "Arena", icon: Swords },
+  { value: "leaderboard", label: "Leaderboard", short: "Ranks", icon: Trophy },
   { value: "cave", label: "Cave Hunt", short: "Cave", icon: Skull },
   { value: "campaign", label: "Campaign", short: "Day", icon: Calendar },
   { value: "guild", label: "Guild", short: "Guild", icon: Users },
   { value: "quests", label: "Quests", short: "Quests", icon: ScrollText },
   { value: "stats", label: "Stats", short: "Stats", icon: BarChart3 },
-  { value: "leaderboard", label: "Leaderboard", short: "Ranks", icon: Trophy },
   { value: "prestige", label: "Prestige", short: "Rebirth", icon: Sparkles },
 ] as const;
 
@@ -131,19 +132,24 @@ export default function Home() {
         </div>
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="gap-3">
-          {/* Tab bar: horizontally scrollable on small screens so all 7
-              tabs remain reachable at 375px. The scroll container hides
-              the scrollbar for a cleaner look. */}
-          <div className="-mx-3 px-3 sm:mx-0 sm:px-0">
+          {/* Tab bar: horizontally scrollable on small screens so all 11
+              tabs remain reachable. A gradient fade + chevron on the right
+              edge hint that more tabs are available by scrolling. */}
+          <div className="relative -mx-3 px-3 sm:mx-0 sm:px-0">
+            {/* Right-edge scroll indicator (mobile only) */}
+            <div aria-hidden className="pointer-events-none absolute right-0 top-1/2 z-10 -translate-y-1/2 text-amber-400 sm:hidden">
+              <ChevronRight className="size-4 drop-shadow-[0_0_4px_rgba(251,191,36,0.6)]" />
+            </div>
+            <div aria-hidden className="pointer-events-none absolute right-0 top-0 z-10 h-full w-12 bg-gradient-to-l from-stone-950 via-stone-950/80 to-transparent sm:hidden" />
             <div className="overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <TabsList className="flex h-auto w-max gap-1 rounded-lg border border-stone-800/80 bg-stone-900/70 p-1 backdrop-blur">
+              <TabsList className="flex h-auto w-max gap-0.5 rounded-lg border border-stone-800/80 bg-stone-900/70 p-1 backdrop-blur">
                 {TABS.map(({ value, label, short, icon: Icon }) => (
                   <TabsTrigger
                     key={value}
                     value={value}
-                    className="gap-1.5 rounded-md px-2.5 py-2 text-xs font-medium text-stone-300 data-[state=active]:bg-amber-950/60 data-[state=active]:text-amber-200 data-[state=active]:shadow-inner sm:px-3 sm:text-sm"
+                    className="gap-1 rounded-md px-2 py-1.5 text-[10px] font-medium text-stone-300 data-[state=active]:bg-amber-950/60 data-[state=active]:text-amber-200 data-[state=active]:shadow-inner sm:gap-1.5 sm:px-3 sm:py-2 sm:text-sm"
                   >
-                    <Icon className="size-4 shrink-0" />
+                    <Icon className="size-3.5 shrink-0 sm:size-4" />
                     <span className="hidden sm:inline">{label}</span>
                     <span className="sm:hidden">{short}</span>
                   </TabsTrigger>

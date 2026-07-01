@@ -59,6 +59,7 @@ import { claimCheckIn, canClaimCheckIn } from './check-in';
 import { claimCampaign, canClaimCampaign, campaignProgress, getCurrentCampaignQuest } from './campaign';
 import {
   createGuild as createGuildFn,
+  joinGuild as joinGuildFn,
   leaveGuild as leaveGuildFn,
   sendGuildMessage as sendGuildMsgFn,
   declareGuildWar as declareWarFn,
@@ -164,6 +165,7 @@ export interface GameStore {
   claimDailyCheckIn: () => boolean;
   claimCampaignQuest: () => boolean;
   createGuild: (name: string, tag: string) => boolean;
+  joinGuild: (guildId: string) => boolean;
   leaveGuild: () => void;
   sendGuildMessage: (text: string) => void;
   declareGuildWar: (rivalIndex: number) => { success: boolean; won: boolean; goldGained: number; reason?: string };
@@ -632,6 +634,18 @@ export const useGameStore = create<GameStore>()(
       createGuild: (name, tag) => {
         const s = get();
         const result = createGuildFn(s.state, name, tag);
+        if (result.ok) {
+          set({ state: result.state });
+          playSound('upgrade');
+        } else {
+          playSound('error');
+        }
+        return result.ok;
+      },
+
+      joinGuild: (guildId) => {
+        const s = get();
+        const result = joinGuildFn(s.state, guildId);
         if (result.ok) {
           set({ state: result.state });
           playSound('upgrade');

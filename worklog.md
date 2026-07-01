@@ -584,3 +584,54 @@ User reported multiple issues and requested new features. QA confirmed: (1) gath
 3. **Market buy tab** — purchase upgrade materials with gold.
 4. **Crafting recipe discovery** — unlock recipes via campaign progression.
 5. **Notification for daily check-in** — a badge/pulse on the Campaign tab when a claim is available.
+
+---
+Task ID: 13 (Leaderboard visibility + Guild join list + Resource bar)
+Agent: Main Architect
+Task: Fix user complaints — leaderboard not visible on mobile, no guild list to join, resources not visible at top.
+
+## Current Project Status Assessment
+User reported 3 issues: (1) can't see the leaderboard, (2) wants a list of guilds to join (not just create), (3) wants resources shown at top. QA confirmed: resource bar IS at the top (Gold/Wood/Stone/Iron/Troops/Arsenal with tooltips), leaderboard tab exists but with 11 tabs on mobile only 4 were visible (Leaderboard was tab #10, cut off), Guild tab only had "Create Guild" with no browse/join option.
+
+## Completed Modifications This Round
+
+### 1. FIX: Leaderboard visibility (tab reorder + compact mobile + scroll indicator)
+- `src/app/page.tsx` — reordered tabs to put Leaderboard at position #5 (after Arena) instead of #10. Now the first 5 tabs on mobile are: Gather, Camp, Forge, Arena, Ranks (Leaderboard).
+- Made mobile tabs more compact: padding `px-2 py-1.5` (was `px-2.5 py-2`), text `text-[10px]` (was `text-xs`), icons `size-3.5` (was `size-4`), gap `gap-0.5` (was `gap-1`). Desktop sizes unchanged (`sm:` breakpoints).
+- Added a right-edge scroll indicator: an amber `ChevronRight` icon + a `from-stone-950 via-stone-950/80` gradient fade on the right edge (mobile only, `sm:hidden`). This hints that more tabs are available by scrolling.
+- Result: 5 tabs now visible on 375px mobile (up from 4), with Leaderboard (Ranks) as the 5th visible tab.
+
+### 2. NEW FEATURE: Browsable guild list (8 NPC guilds to join)
+- `src/lib/game/guild.ts` — added `JoinableGuild` interface + `JOINABLE_GUILDS` array with 8 pre-existing NPC guilds:
+  - Iron Wolves (Balanced, Lv1)
+  - Phoenix Reborn (PvP Focus, Lv3)
+  - Stone Guard (Defense, Lv1)
+  - Shadow Syndicate (Stealth, Lv5)
+  - Dragon Slayers (Hunting, Lv8)
+  - Golden Hand (Economy, Lv2)
+  - Arcane Order (Magic, Lv6)
+  - Frost Vikings (Raiding, Lv4)
+  Each has name, tag, avatar, description, member_count, power, min_level, theme.
+- Added `joinGuild(state, guildId)` function — validates level requirement, generates NPC members based on member_count, adds player as a member (not leader).
+- `src/lib/game/store.ts` — added `joinGuild` store method.
+- `src/components/game/GuildPanel.tsx` — redesigned the "no guild" view with a 2-tab layout:
+  - **Join Guild** (default): browse 8 NPC guilds as cards (avatar, name, tag, theme badge, description, member count, power, level requirement). Join button (disabled if level too low, shows "Locked — Need Level X").
+  - **Create Guild**: the original create form (name + tag inputs).
+
+### 3. FIX: Resource bar confirmed visible
+- The resource bar was already at the top showing Gold, Wood, Stone, Iron, Troops, Arsenal with tooltips (added in Task 12). Verified via VLM: "resource bar with Gold/Wood/Stone/Iron is visible at the top" on both desktop and mobile.
+
+## Verification Results
+- `bun run lint` — clean (0 errors).
+- agent-browser QA: mobile (375px) now shows 5 tabs including "Ranks" (Leaderboard). Guild tab shows "Join Guild" (default) + "Create Guild" tabs. Join tab lists 8 NPC guilds with Join buttons. Joined "Iron Wolves" → guild panel shows Members, Chat, Guild War, Trade sections. Resource bar visible at top on all screen sizes.
+- No runtime errors.
+
+## Unresolved Issues / Risks
+- None blocking. All three user complaints addressed.
+- The scroll indicator (chevron + gradient) may be subtle on some screens; the compact tab sizing ensures 5 tabs fit on 375px which covers the most important tabs.
+
+## Priority Recommendations for Next Phase
+1. **Guild member profiles** — click a member to see their stats + send them a message.
+2. **Guild perks** — passive bonuses based on guild power.
+3. **Market buy tab** — purchase upgrade materials with gold.
+4. **Notification badges** — show a pulse/badge on tabs when actions are available (e.g., daily check-in ready, quest complete).

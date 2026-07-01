@@ -10,21 +10,23 @@
 
 import * as React from "react";
 import { useGameStore } from "@/lib/game/store";
-import { getRivalGuilds, isInGuild } from "@/lib/game/guild";
+import { getRivalGuilds, isInGuild, JOINABLE_GUILDS } from "@/lib/game/guild";
 import { formatNumber } from "@/lib/game/constants";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { UpgradeButton } from "@/components/game/ui/UpgradeButton";
-import { Users, Swords, Send, LogOut, Coins, TreePine, Mountain, Anvil, ArrowLeftRight } from "lucide-react";
+import { Users, Swords, Send, LogOut, Coins, TreePine, Mountain, Anvil, ArrowLeftRight, Search, Plus, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export function GuildPanel() {
   const state = useGameStore((s) => s.state);
   const createGuild = useGameStore((s) => s.createGuild);
+  const joinGuild = useGameStore((s) => s.joinGuild);
   const leaveGuild = useGameStore((s) => s.leaveGuild);
   const sendMessage = useGameStore((s) => s.sendGuildMessage);
   const declareWar = useGameStore((s) => s.declareGuildWar);
@@ -48,55 +50,127 @@ export function GuildPanel() {
           <div className="h-px flex-1 bg-stone-800/60" />
         </div>
 
-        <Card className="gap-3 border-stone-800/80 bg-stone-900/50 p-6">
-          <div className="text-center">
-            <Users className="mx-auto size-12 text-stone-600" />
-            <h3 className="mt-2 text-base font-bold text-stone-100">Create Your Guild</h3>
-            <p className="mt-1 text-xs text-stone-400">
-              Found a guild to recruit members, chat, declare guild wars, and trade resources.
-            </p>
-          </div>
+        <Tabs defaultValue="join" className="gap-3">
+          <TabsList className="grid w-full grid-cols-2 rounded-lg border border-stone-800/80 bg-stone-900/70">
+            <TabsTrigger value="join" className="gap-1.5 text-xs data-[state=active]:bg-amber-950/60 data-[state=active]:text-amber-200">
+              <Search className="size-3.5" />
+              Join Guild
+            </TabsTrigger>
+            <TabsTrigger value="create" className="gap-1.5 text-xs data-[state=active]:bg-amber-950/60 data-[state=active]:text-amber-200">
+              <Plus className="size-3.5" />
+              Create Guild
+            </TabsTrigger>
+          </TabsList>
 
-          <div className="space-y-3">
-            <div className="space-y-1">
-              <Label className="text-xs text-stone-400">Guild Name</Label>
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Iron Wolves"
-                maxLength={20}
-                className="border-stone-700 bg-stone-950 text-stone-100"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs text-stone-400">Guild Tag (2-4 chars)</Label>
-              <Input
-                value={tag}
-                onChange={(e) => setTag(e.target.value.toUpperCase().slice(0, 4))}
-                placeholder="e.g. IRW"
-                maxLength={4}
-                className="border-stone-700 bg-stone-950 font-mono text-stone-100"
-              />
-            </div>
-            <UpgradeButton
-              canAfford={name.trim().length >= 3 && tag.trim().length >= 2}
-              onClick={() => {
-                const ok = createGuild(name, tag);
-                if (ok) {
-                  toast.success("Guild created!", { description: `${name} [${tag.toUpperCase()}] is ready.` });
-                } else {
-                  toast.error("Can't create guild", { description: "Check name (3+ chars) and tag (2-4 chars)." });
-                }
-              }}
-              className="w-full"
-            >
-              <span className="flex items-center justify-center gap-1">
-                <Users className="size-4" />
-                Create Guild
-              </span>
-            </UpgradeButton>
-          </div>
-        </Card>
+          {/* Join a guild */}
+          <TabsContent value="join" className="space-y-2">
+            <p className="text-[11px] text-stone-400">
+              Browse existing guilds and join one that fits your playstyle. Each guild has its own theme and member community.
+            </p>
+            {JOINABLE_GUILDS.map((g) => {
+              const canJoin = state.player.level >= g.min_level;
+              return (
+                <Card key={g.id} className="gap-2 border-stone-800/80 bg-stone-900/50 p-3">
+                  <div className="flex items-start gap-3">
+                    <span className="text-3xl">{g.avatar}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate text-sm font-bold text-stone-100">{g.name}</span>
+                        <Badge className="bg-amber-600 px-1 text-[9px] text-amber-50">[{g.tag}]</Badge>
+                        <Badge variant="outline" className="border-stone-700 text-[9px] text-stone-400">{g.theme}</Badge>
+                      </div>
+                      <p className="text-[11px] text-stone-400">{g.description}</p>
+                      <div className="mt-1 flex items-center gap-3 text-[10px] text-stone-500">
+                        <span>👥 {g.member_count} members</span>
+                        <span>⚡ {formatNumber(g.power)} power</span>
+                        {g.min_level > 1 && (
+                          <span className={canJoin ? "text-emerald-400" : "text-rose-400"}>
+                            {canJoin ? "" : <Lock className="mr-0.5 inline size-2.5" />}
+                            Lv {g.min_level}+
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={() => {
+                      const ok = joinGuild(g.id);
+                      if (ok) {
+                        toast.success(`Joined ${g.name}!`, { description: `You are now a member of [${g.tag}].` });
+                      } else {
+                        toast.error("Can't join", { description: `Requires level ${g.min_level}.` });
+                      }
+                    }}
+                    disabled={!canJoin}
+                    size="sm"
+                    className={cn(
+                      "w-full gap-1",
+                      canJoin
+                        ? "bg-amber-600 text-amber-50 hover:bg-amber-500"
+                        : "bg-stone-800 text-stone-500",
+                    )}
+                  >
+                    <Users className="size-3.5" />
+                    {canJoin ? "Join Guild" : `Locked — Need Level ${g.min_level}`}
+                  </Button>
+                </Card>
+              );
+            })}
+          </TabsContent>
+
+          {/* Create a guild */}
+          <TabsContent value="create">
+            <Card className="gap-3 border-stone-800/80 bg-stone-900/50 p-6">
+              <div className="text-center">
+                <Users className="mx-auto size-12 text-stone-600" />
+                <h3 className="mt-2 text-base font-bold text-stone-100">Create Your Own Guild</h3>
+                <p className="mt-1 text-xs text-stone-400">
+                  Found a new guild. You become the leader and recruit NPC members.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <Label className="text-xs text-stone-400">Guild Name</Label>
+                  <Input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="e.g. Iron Wolves"
+                    maxLength={20}
+                    className="border-stone-700 bg-stone-950 text-stone-100"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-stone-400">Guild Tag (2-4 chars)</Label>
+                  <Input
+                    value={tag}
+                    onChange={(e) => setTag(e.target.value.toUpperCase().slice(0, 4))}
+                    placeholder="e.g. IRW"
+                    maxLength={4}
+                    className="border-stone-700 bg-stone-950 font-mono text-stone-100"
+                  />
+                </div>
+                <UpgradeButton
+                  canAfford={name.trim().length >= 3 && tag.trim().length >= 2}
+                  onClick={() => {
+                    const ok = createGuild(name, tag);
+                    if (ok) {
+                      toast.success("Guild created!", { description: `${name} [${tag.toUpperCase()}] is ready.` });
+                    } else {
+                      toast.error("Can't create guild", { description: "Check name (3+ chars) and tag (2-4 chars)." });
+                    }
+                  }}
+                  className="w-full"
+                >
+                  <span className="flex items-center justify-center gap-1">
+                    <Users className="size-4" />
+                    Create Guild
+                  </span>
+                </UpgradeButton>
+              </div>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     );
   }

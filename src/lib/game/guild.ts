@@ -33,6 +33,33 @@ const RIVAL_GUILDS: Array<{ name: string; tag: string; avatar: string; power: nu
   { name: 'Eternal Flame', tag: 'ETN', avatar: '🔥', power: 30000 },
 ];
 
+/** Pre-existing NPC guilds the player can browse and join. */
+export interface JoinableGuild {
+  id: string;
+  name: string;
+  tag: string;
+  avatar: string;
+  description: string;
+  member_count: number;
+  power: number;
+  /** Minimum player level to join. */
+  min_level: number;
+  /** Speciality / theme. */
+  theme: string;
+}
+
+/** The list of NPC guilds available to join. */
+export const JOINABLE_GUILDS: JoinableGuild[] = [
+  { id: 'g_wolves', name: 'Iron Wolves', tag: 'IRW', avatar: '🐺', description: 'A pack of fierce warriors who value loyalty and strength.', member_count: 8, power: 3200, min_level: 1, theme: 'Balanced' },
+  { id: 'g_phoenix', name: 'Phoenix Reborn', tag: 'PHX', avatar: '🔥', description: 'Rising from ashes, this guild specializes in aggressive PvP.', member_count: 12, power: 8500, min_level: 3, theme: 'PvP Focus' },
+  { id: 'g_stone', name: 'Stone Guard', tag: 'STG', avatar: '🪨', description: 'Defenders and builders. Masters of fortification.', member_count: 6, power: 4100, min_level: 1, theme: 'Defense' },
+  { id: 'g_shadow', name: 'Shadow Syndicate', tag: 'SHD', avatar: '🌑', description: 'Rogues and assassins. Strike from the shadows.', member_count: 10, power: 6700, min_level: 5, theme: 'Stealth' },
+  { id: 'g_dragon', name: 'Dragon Slayers', tag: 'DRS', avatar: '🐉', description: 'Elite hunters who slay the mightiest beasts.', member_count: 15, power: 15000, min_level: 8, theme: 'Hunting' },
+  { id: 'g_merchants', name: 'Golden Hand', tag: 'GHD', avatar: '💰', description: 'Traders and crafters. Wealth is power.', member_count: 9, power: 5200, min_level: 2, theme: 'Economy' },
+  { id: 'g_scholars', name: 'Arcane Order', tag: 'ARC', avatar: '📜', description: 'Wise sages who study the ancient arts of war.', member_count: 7, power: 7800, min_level: 6, theme: 'Magic' },
+  { id: 'g_vikings', name: 'Frost Vikings', tag: 'FRV', avatar: '❄️', description: 'Raiders from the north. Cold, ruthless, relentless.', member_count: 11, power: 9200, min_level: 4, theme: 'Raiding' },
+];
+
 /** Create fresh guild state (not in a guild). */
 export function createInitialGuild(): GuildState {
   return {
@@ -104,6 +131,70 @@ export function createGuild(
         author: 'System',
         avatar: '📢',
         text: `Welcome to ${name.trim()}! Your guild is ready for adventure.`,
+        timestamp: now,
+        is_player: false,
+      },
+    ],
+    members,
+    last_war_at: null,
+  };
+
+  return { state: next, ok: true };
+}
+
+/**
+ * Join an existing NPC guild. Generates NPC members based on the
+ * guild's member_count + adds the player as a member.
+ */
+export function joinGuild(
+  state: GameState,
+  guildId: string,
+): { state: GameState; ok: boolean; reason?: string } {
+  if (isInGuild(state)) {
+    return { state, ok: false, reason: 'Already in a guild' };
+  }
+  const guild = JOINABLE_GUILDS.find((g) => g.id === guildId);
+  if (!guild) {
+    return { state, ok: false, reason: 'Guild not found' };
+  }
+  if (state.player.level < guild.min_level) {
+    return { state, ok: false, reason: `Requires level ${guild.min_level}` };
+  }
+
+  const now = Date.now();
+  // Generate NPC members up to the guild's member_count (minus 1 for the player).
+  const npcCount = Math.max(1, guild.member_count - 1);
+  const shuffled = [...NPC_NAMES].sort(() => Math.random() - 0.5).slice(0, Math.min(npcCount, NPC_NAMES.length));
+  const members: GuildMember[] = shuffled.map((npc, i) => ({
+    id: `npc_${i}_${now}`,
+    name: npc.name,
+    avatar: npc.avatar,
+    level: Math.max(1, state.player.level - 3 + Math.floor(Math.random() * 6)),
+    power: Math.floor(300 + Math.random() * 1500 + state.player.level * 80),
+    role: i === 0 ? 'officer' : 'member',
+  }));
+  // Add the player as a member (not leader — they joined an existing guild).
+  members.unshift({
+    id: 'player',
+    name: 'You',
+    avatar: '🎖️',
+    level: state.player.level,
+    power: state.player.level * 100 + state.stats.total_victories * 50,
+    role: 'member',
+    is_player: true,
+  });
+
+  const next = structuredClone(state);
+  next.guild = {
+    guild_id: guild.id,
+    guild_name: guild.name,
+    guild_tag: guild.tag,
+    messages: [
+      {
+        id: `msg_${now}`,
+        author: 'System',
+        avatar: '📢',
+        text: `Welcome to ${guild.name}! You've joined as a member.`,
         timestamp: now,
         is_player: false,
       },
