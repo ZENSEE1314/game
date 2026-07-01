@@ -30,6 +30,7 @@ import { Arena } from "@/components/game/Arena";
 import { CaveHuntingPanel } from "@/components/game/CaveHuntingPanel";
 import { CampaignPanel } from "@/components/game/CampaignPanel";
 import { GuildPanel } from "@/components/game/GuildPanel";
+import { TabScrollArea } from "@/components/game/TabScrollArea";
 import { QuestsPanel } from "@/components/game/QuestsPanel";
 import { StatsPanel } from "@/components/game/StatsPanel";
 import { LeaderboardPanel } from "@/components/game/LeaderboardPanel";
@@ -89,6 +90,17 @@ export default function Home() {
   const resetGame = useGameStore((s) => s.resetGame);
   const [tab, setTab] = React.useState<(typeof TABS)[number]["value"]>("gather");
 
+  // Auto-scroll the active tab into view when it changes (mobile).
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      const active = document.querySelector('[role="tab"][data-state="active"]') as HTMLElement | null;
+      if (active) {
+        active.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+      }
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [tab]);
+
   const handleReset = () => {
     resetGame();
     toast.success("Game reset", {
@@ -133,15 +145,15 @@ export default function Home() {
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="gap-3">
           {/* Tab bar: horizontally scrollable on small screens so all 11
-              tabs remain reachable. A gradient fade + chevron on the right
-              edge hint that more tabs are available by scrolling. */}
+              tabs remain reachable. Touch-swipe to scroll; selected tab
+              auto-scrolls into view. A subtle chevron on the right edge
+              hints that more tabs exist. */}
           <div className="relative -mx-3 px-3 sm:mx-0 sm:px-0">
-            {/* Right-edge scroll indicator (mobile only) */}
-            <div aria-hidden className="pointer-events-none absolute right-0 top-1/2 z-10 -translate-y-1/2 text-amber-400 sm:hidden">
-              <ChevronRight className="size-4 drop-shadow-[0_0_4px_rgba(251,191,36,0.6)]" />
+            {/* Right-edge scroll hint (mobile only, does NOT block clicks) */}
+            <div aria-hidden className="pointer-events-none absolute right-0 top-1/2 z-0 -translate-y-1/2 sm:hidden">
+              <ChevronRight className="size-3.5 text-amber-400/70" />
             </div>
-            <div aria-hidden className="pointer-events-none absolute right-0 top-0 z-10 h-full w-12 bg-gradient-to-l from-stone-950 via-stone-950/80 to-transparent sm:hidden" />
-            <div className="overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <TabScrollArea>
               <TabsList className="flex h-auto w-max gap-0.5 rounded-lg border border-stone-800/80 bg-stone-900/70 p-1 backdrop-blur">
                 {TABS.map(({ value, label, short, icon: Icon }) => (
                   <TabsTrigger
@@ -155,7 +167,7 @@ export default function Home() {
                   </TabsTrigger>
                 ))}
               </TabsList>
-            </div>
+            </TabScrollArea>
           </div>
 
           <AnimatePresence mode="wait">

@@ -635,3 +635,46 @@ User reported 3 issues: (1) can't see the leaderboard, (2) wants a list of guild
 2. **Guild perks** — passive bonuses based on guild power.
 3. **Market buy tab** — purchase upgrade materials with gold.
 4. **Notification badges** — show a pulse/badge on tabs when actions are available (e.g., daily check-in ready, quest complete).
+
+---
+Task ID: 14 (Fix tab bar scroll/click issue)
+Agent: Main Architect
+Task: Fix the "top nav buttons can scroll but cannot click the right side button" issue on mobile.
+
+## Current Project Status Assessment
+User reported that on mobile, the tab bar can scroll but tabs on the right side can't be clicked. QA confirmed: the gradient overlay (w-12 = 48px wide, z-10) that was added as a scroll indicator was intercepting touch events on the rightmost visible tabs, making them unclickable. Even though it had `pointer-events-none`, the combination of `z-10` + the wide overlay was causing touch-target issues on mobile browsers.
+
+## Completed Modifications This Round
+
+### 1. FIX: Removed the blocking gradient overlay
+- `src/app/page.tsx` — removed the `w-12` gradient overlay div (`bg-gradient-to-l from-stone-950 via-stone-950/80`) that was sitting at `z-10` over the scroll container and blocking clicks on right-side tabs.
+- Replaced it with a minimal `ChevronRight` icon at `z-0` (behind the scroll content) that's purely decorative and doesn't block any touch area.
+
+### 2. NEW: TabScrollArea component (`src/components/game/TabScrollArea.tsx`)
+- Created a dedicated scroll container with proper mobile touch handling:
+  - `WebkitOverflowScrolling: "touch"` — momentum scrolling on iOS.
+  - `overscrollBehaviorX: "contain"` — prevents swipe-from-edge browser navigation.
+  - `touchAction: "pan-x"` — allows horizontal pan without blocking vertical scroll.
+  - No overlay elements that could intercept clicks.
+
+### 3. NEW: Auto-scroll active tab into view
+- `src/app/page.tsx` — added a `useEffect` that runs when `tab` changes. It queries the active tab element (`[role="tab"][data-state="active"]`) and calls `scrollIntoView({ behavior: "smooth", inline: "center" })`. This means when a tab is selected (even programmatically), it auto-scrolls to the center of the visible area, so the player always sees their active tab + can see what's to the right.
+- The effect is debounced with a 50ms `setTimeout` to ensure the DOM has updated before scrolling.
+
+## Verification Results
+- `bun run lint` — clean (0 errors).
+- agent-browser QA on 375px mobile:
+  - "Ranks" (Leaderboard, tab #5) — clickable ✓
+  - "Rebirth" (Prestige, tab #11, last) — clickable ✓ (auto-scrolled into view)
+  - "Quests" (tab #9, middle-right) — clickable ✓
+  - All 11 tabs confirmed accessible.
+- No runtime errors.
+
+## Unresolved Issues / Risks
+- None blocking. All tabs are now clickable on mobile.
+- The chevron indicator is subtle (z-0, behind content); if the user doesn't notice it, they may not realize the bar scrolls. The auto-scroll-into-view mitigates this by centering the active tab.
+
+## Priority Recommendations for Next Phase
+1. **Tab notification badges** — pulse/badge on tabs when actions are available.
+2. **Guild member profiles** — click members to see stats.
+3. **Market buy tab** — purchase materials with gold.
