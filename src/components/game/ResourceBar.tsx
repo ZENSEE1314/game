@@ -43,7 +43,7 @@ export function ResourceBar() {
   const shielded = shieldLabel !== "None";
 
   return (
-    <header className="sticky top-0 z-30 border-b border-stone-800/80 bg-stone-950/85 backdrop-blur-md">
+    <header className="rounded-lg border border-stone-800/80 bg-stone-900/60 backdrop-blur-md">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-3 py-2.5 sm:px-4">
         {/* Top row: level + gold + shield */}
         <div className="flex flex-wrap items-center gap-2">

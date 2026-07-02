@@ -68,6 +68,7 @@ import {
   Calendar,
   Users,
   ChevronRight,
+  ChevronLeft,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -89,17 +90,22 @@ export default function Home() {
   useGameLoop();
   const resetGame = useGameStore((s) => s.resetGame);
   const [tab, setTab] = React.useState<(typeof TABS)[number]["value"]>("gather");
+  const scrollRef = React.useRef<HTMLDivElement>(null);
 
-  // Auto-scroll the active tab into view when it changes (mobile).
+  // Auto-scroll the active tab into view when it changes.
   React.useEffect(() => {
     const timer = setTimeout(() => {
-      const active = document.querySelector('[role="tab"][data-state="active"]') as HTMLElement | null;
-      if (active) {
-        active.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+      if (scrollRef.current) {
+        const active = scrollRef.current.querySelector('button[class*="amber-950"]') as HTMLElement | null;
+        if (active) active.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
       }
     }, 50);
     return () => clearTimeout(timer);
   }, [tab]);
+
+  const scrollByDir = (dir: 'left' | 'right') => {
+    if (scrollRef.current) scrollRef.current.scrollBy({ left: dir === 'left' ? -200 : 200, behavior: 'smooth' });
+  };
 
   const handleReset = () => {
     resetGame();
@@ -131,44 +137,38 @@ export default function Home() {
         className="right-[2%] top-[55%] size-64 sm:size-80"
       />
 
-      {/* Sticky top bar */}
-      <div className="relative z-20">
-        <ResourceBar />
-      </div>
-
       {/* Main content */}
       <main className="relative z-10 mx-auto w-full max-w-6xl flex-1 px-3 py-4 sm:px-4 sm:py-6">
-        {/* Limited-time event banner (renders only when an event is active). */}
+        {/* Limited-time event banner — shown FIRST at the top */}
         <div className="mb-3">
           <EventBanner />
         </div>
 
-        <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="gap-3">
-          {/* Tab bar: horizontally scrollable on small screens so all 11
-              tabs remain reachable. Touch-swipe to scroll; selected tab
-              auto-scrolls into view. A subtle chevron on the right edge
-              hints that more tabs exist. */}
-          <div className="relative -mx-3 px-3 sm:mx-0 sm:px-0">
-            {/* Right-edge scroll hint (mobile only, does NOT block clicks) */}
-            <div aria-hidden className="pointer-events-none absolute right-0 top-1/2 z-0 -translate-y-1/2 sm:hidden">
-              <ChevronRight className="size-3.5 text-amber-400/70" />
+        {/* Resource bar with Level + EXP + ALL resources — shown BELOW event banner */}
+        <div className="mb-3">
+          <ResourceBar />
+        </div>
+
+        {/* Tab bar with visible left/right scroll arrows */}
+        <div className="flex items-center gap-1 mb-3">
+          <button onClick={() => scrollByDir('left')} className="flex size-8 shrink-0 items-center justify-center rounded-md border border-stone-800 bg-stone-900 text-stone-400 hover:bg-stone-800 hover:text-amber-200" aria-label="Scroll tabs left">
+            <ChevronLeft className="size-4" />
+          </button>
+          <div ref={scrollRef} className="flex-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x' }}>
+            <div className="flex h-auto w-max gap-0.5 rounded-lg border border-stone-800/80 bg-stone-900/70 p-1 backdrop-blur">
+              {TABS.map(({ value, label, short, icon: Icon }) => (
+                <button key={value} onClick={() => setTab(value)} className={`flex items-center gap-1 rounded-md px-2.5 py-2 text-[11px] font-medium transition-colors sm:gap-1.5 sm:px-3 sm:text-sm ${tab === value ? 'bg-amber-950/60 text-amber-200 shadow-inner' : 'text-stone-300 hover:text-amber-200'}`}>
+                  <Icon className="size-3.5 shrink-0 sm:size-4" />
+                  <span className="hidden sm:inline">{label}</span>
+                  <span className="sm:hidden">{short}</span>
+                </button>
+              ))}
             </div>
-            <TabScrollArea>
-              <TabsList className="flex h-auto w-max gap-0.5 rounded-lg border border-stone-800/80 bg-stone-900/70 p-1 backdrop-blur">
-                {TABS.map(({ value, label, short, icon: Icon }) => (
-                  <TabsTrigger
-                    key={value}
-                    value={value}
-                    className="gap-1 rounded-md px-2 py-1.5 text-[10px] font-medium text-stone-300 data-[state=active]:bg-amber-950/60 data-[state=active]:text-amber-200 data-[state=active]:shadow-inner sm:gap-1.5 sm:px-3 sm:py-2 sm:text-sm"
-                  >
-                    <Icon className="size-3.5 shrink-0 sm:size-4" />
-                    <span className="hidden sm:inline">{label}</span>
-                    <span className="sm:hidden">{short}</span>
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            </TabScrollArea>
           </div>
+          <button onClick={() => scrollByDir('right')} className="flex size-8 shrink-0 items-center justify-center rounded-md border border-stone-800 bg-stone-900 text-stone-400 hover:bg-stone-800 hover:text-amber-200" aria-label="Scroll tabs right">
+            <ChevronRight className="size-4" />
+          </button>
+        </div>
 
           <AnimatePresence mode="wait">
             <motion.div
@@ -192,7 +192,6 @@ export default function Home() {
               {tab === "prestige" && <PrestigePanel />}
             </motion.div>
           </AnimatePresence>
-        </Tabs>
       </main>
 
       {/* Page-level modals */}
