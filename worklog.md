@@ -678,3 +678,15 @@ User reported that on mobile, the tab bar can scroll but tabs on the right side 
 1. **Tab notification badges** — pulse/badge on tabs when actions are available.
 2. **Guild member profiles** — click members to see stats.
 3. **Market buy tab** — purchase materials with gold.
+
+---
+Task ID: 18 (Food system + level gates + guild cost + admin page)
+Agent: Main Architect
+Task: Food costs on all spending + army food upkeep every 8h + food +5/s start, Arena min Lv5, Cave min Lv10, Guild min Lv10, create guild 500 gold, admin page.
+
+## Completed
+1. **Food**: starts at +5/s, all spending (facility upgrade, troop recruit) costs food. Army eats 1 food per troop every 8h (food_upkeep timer).
+2. **Level gates**: Arena=5, Cave=10, Guild=10 (all show locked screen with countdown).
+3. **Create guild**: 500 gold deducted on creation.
+4. **Admin page** at /admin (password: admin123): edit player (gold/level/troops/weapons), edit price formulas, view facility levels, food system info, level requirements.
+5. **Rice Farm** produces Food (not Gold) — Gold only from Arena + Cave.

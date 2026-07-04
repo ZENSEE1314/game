@@ -29,6 +29,7 @@ export function createInitialState(): GameState {
       wood: { current_amount: 120, raw_per_sec: 0, refined_amount: 60, processing_rate: 0 },
       stone: { current_amount: 120, raw_per_sec: 0, refined_amount: 60, processing_rate: 0 },
       iron: { current_amount: 60, raw_per_sec: 0, refined_amount: 30, processing_rate: 0 },
+      food: { current_amount: 100, raw_per_sec: 5, refined_amount: 0, processing_rate: 0 },
     },
     facilities: {
       wood_gatherer: 1,
@@ -96,6 +97,7 @@ export function createInitialState(): GameState {
       next_reset_at: Date.now() + 24 * 60 * 60 * 1000,
       last_entered: {},
     },
+    food_upkeep: { last_deducted_at: Date.now(), last_deduction: 0 },
     inventory: {
       items: {},
       trinkets: {},

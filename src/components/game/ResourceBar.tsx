@@ -30,6 +30,7 @@ import {
   Shield,
   ShieldAlert,
   Lock,
+  Wheat,
 } from "lucide-react";
 
 export function ResourceBar() {
@@ -43,7 +44,7 @@ export function ResourceBar() {
   const shielded = shieldLabel !== "None";
 
   return (
-    <header suppressHydrationWarning className="rounded-lg border border-stone-800/80 bg-stone-900/60 backdrop-blur-md">
+    <div className="rounded-lg border border-stone-800/80 bg-stone-900/60 backdrop-blur-md">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-3 py-2.5 sm:px-4">
         {/* Top row: level + gold + shield */}
         <div className="flex flex-wrap items-center gap-2">
@@ -124,11 +125,19 @@ export function ResourceBar() {
           />
           <StatChip
             icon={<Anvil />}
-            label="Iron"
+            label="Ore"
             value={formatNumber(resources.iron.current_amount)}
             tone="amber"
             sub={`+${resources.iron.raw_per_sec.toFixed(1)}/s`}
-            tooltip={`Iron — ${formatNumber(resources.iron.current_amount)} raw, ${formatNumber(resources.iron.refined_amount)} refined (+${resources.iron.processing_rate.toFixed(1)}/s)`}
+            tooltip={`Ore — ${formatNumber(resources.iron.current_amount)} raw, ${formatNumber(resources.iron.refined_amount)} refined`}
+          />
+          <StatChip
+            icon={<Wheat />}
+            label="Food"
+            value={formatNumber(resources.food?.current_amount ?? 0)}
+            tone="emerald"
+            sub={`+${(resources.food?.raw_per_sec ?? 0).toFixed(1)}/s`}
+            tooltip={`Food — ${formatNumber(resources.food?.current_amount ?? 0)} | Army eats ${army.active_troops} food per 8h`}
           />
           <StatChip
             icon={<Users />}
@@ -156,6 +165,6 @@ export function ResourceBar() {
           <SoundToggle />
         </div>
       </div>
-    </header>
+    </div>
   );
 }

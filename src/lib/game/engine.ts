@@ -82,6 +82,23 @@ export function applyProductionTick(state: GameState, seconds: number): GameStat
   next.resources.wood = tickResource(next.resources.wood, seconds, rawMult * rawEvent, refineMult * refineEvent);
   next.resources.stone = tickResource(next.resources.stone, seconds, rawMult * rawEvent, refineMult * refineEvent);
   next.resources.iron = tickResource(next.resources.iron, seconds, rawMult * rawEvent, refineMult * refineEvent);
+  // Food — passive production (no refining).
+  if (next.resources.food) {
+    next.resources.food.current_amount += (next.resources.food.raw_per_sec || 0) * rawMult * rawEvent * seconds;
+  }
+
+  // Army food upkeep — deduct 1 food per troop every 8 hours.
+  if (next.resources.food && next.army && next.army.active_troops > 0) {
+    if (!next.food_upkeep) next.food_upkeep = { last_deducted_at: Date.now() };
+    const eightHours = 8 * 60 * 60 * 1000;
+    const elapsed = Date.now() - (next.food_upkeep.last_deducted_at || Date.now());
+    if (elapsed >= eightHours) {
+      const deduction = next.army.active_troops; // 1 food per troop
+      next.resources.food.current_amount = Math.max(0, next.resources.food.current_amount - deduction);
+      next.food_upkeep.last_deducted_at = Date.now();
+      next.food_upkeep.last_deduction = deduction;
+    }
+  }
 
   // Passive gold trickle (prestige logistics × event gold buff × trinket bonus).
   const goldTrinket = trinketMultiplier(next, 'gold_per_sec');

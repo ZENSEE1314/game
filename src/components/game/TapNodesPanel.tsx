@@ -65,7 +65,7 @@ const NODES: NodeConfig[] = [
   },
   {
     key: "farm",
-    name: "Gold Farm",
+    name: "Rice Farm",
     image: "/nodes/farm.png",
     toolKey: "sickle_level",
     toolName: "Sickle",

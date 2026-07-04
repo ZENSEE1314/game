@@ -24,6 +24,8 @@ import {
   canRebirth,
   perkMultiplier,
   REBIRTH_MIN_GOLD,
+  REBIRTH_MIN_LEVEL,
+  REBIRTH_RESET_LEVEL,
 } from "@/lib/game/prestige";
 import type { PrestigePerk } from "@/lib/game/types";
 import { Card } from "@/components/ui/card";
@@ -420,7 +422,7 @@ export function PrestigePanel() {
               )}
             >
               <RotateCcw className="size-4" />
-              {allowed ? "Rebirth" : "Not enough gold"}
+              {allowed ? "Rebirth" : state.player.level < REBIRTH_MIN_LEVEL ? `Need Level ${REBIRTH_MIN_LEVEL}` : "Not enough gold"}
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent className="border-stone-700 bg-stone-950 text-stone-100">

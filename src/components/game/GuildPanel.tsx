@@ -40,6 +40,22 @@ export function GuildPanel() {
   const [giveQty, setGiveQty] = React.useState(100);
 
   const inGuild = isInGuild(state);
+  const GUILD_MIN_LEVEL = 10;
+
+  // Level gate — must be level 10+ to access guilds
+  if (state.player.level < GUILD_MIN_LEVEL) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-2"><Users className="size-5 text-amber-400" /><h2 className="text-lg font-bold text-stone-100">Guild</h2><div className="h-px flex-1 bg-stone-800/60" /></div>
+        <div className="flex flex-col items-center justify-center rounded-lg border border-rose-900/40 bg-rose-950/15 px-4 py-12 text-center">
+          <Lock className="size-12 text-rose-400/60" />
+          <h3 className="mt-3 text-base font-bold text-rose-200">Guild Locked</h3>
+          <p className="mt-1 text-xs text-stone-400">You must reach <span className="font-bold text-amber-300">Level {GUILD_MIN_LEVEL}</span> to join or create a guild.</p>
+          <p className="mt-2 text-[11px] text-stone-500">Current level: <span className="font-bold text-stone-300">{state.player.level}</span> · {GUILD_MIN_LEVEL - state.player.level} more to go!</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!inGuild) {
     return (
@@ -151,11 +167,12 @@ export function GuildPanel() {
                   />
                 </div>
                 <UpgradeButton
-                  canAfford={name.trim().length >= 3 && tag.trim().length >= 2}
+                  canAfford={name.trim().length >= 3 && tag.trim().length >= 2 && state.player.gold >= 500}
                   onClick={() => {
+                    if (state.player.gold < 500) { toast.error("Need 500 gold to create a guild!"); return; }
                     const ok = createGuild(name, tag);
                     if (ok) {
-                      toast.success("Guild created!", { description: `${name} [${tag.toUpperCase()}] is ready.` });
+                      toast.success("Guild created!", { description: `${name} [${tag.toUpperCase()}] is ready. -500 gold.` });
                     } else {
                       toast.error("Can't create guild", { description: "Check name (3+ chars) and tag (2-4 chars)." });
                     }
@@ -164,7 +181,7 @@ export function GuildPanel() {
                 >
                   <span className="flex items-center justify-center gap-1">
                     <Users className="size-4" />
-                    Create Guild
+                    Create Guild (500 🪙)
                   </span>
                 </UpgradeButton>
               </div>

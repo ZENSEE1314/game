@@ -223,6 +223,7 @@ export interface GameState {
     wood: ResourceState;
     stone: ResourceState;
     iron: ResourceState;
+    food: ResourceState;
   };
   facilities: FacilityLevels;
   army: ArmyState;
@@ -252,6 +253,8 @@ export interface GameState {
   tap_nodes: TapNodesState;
   /** Cave hunting system. */
   cave: CaveState;
+  /** Army food upkeep timer — deducts food every 8h. */
+  food_upkeep: { last_deducted_at: number; last_deduction: number } | null;
   /** Monster-item inventory + market. */
   inventory: InventoryState;
   /** 30-day daily check-in calendar. */

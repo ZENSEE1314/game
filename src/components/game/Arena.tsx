@@ -40,6 +40,7 @@ import {
   Trophy,
   Zap,
   Clock,
+  Lock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -536,11 +537,27 @@ export function Arena() {
   const busy = useGameStore((s) => s.busy);
   const refresh = useGameStore((s) => s.refreshOpponents);
   const history = useGameStore((s) => s.state.battle_history);
+  const playerLevel = useGameStore((s) => s.state.player.level);
+  const ARENA_MIN_LEVEL = 5;
 
   const handleRefresh = async () => {
     await refresh();
     toast.success("Fresh opponents scouted");
   };
+
+  if (playerLevel < ARENA_MIN_LEVEL) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-2"><Skull className="size-5 text-rose-400" /><h2 className="text-lg font-bold text-stone-100">Arena</h2><div className="h-px flex-1 bg-stone-800/60" /></div>
+        <div className="flex flex-col items-center justify-center rounded-lg border border-rose-900/40 bg-rose-950/15 px-4 py-12 text-center">
+          <Lock className="size-12 text-rose-400/60" />
+          <h3 className="mt-3 text-base font-bold text-rose-200">Arena Locked</h3>
+          <p className="mt-1 text-xs text-stone-400">You must reach <span className="font-bold text-amber-300">Level {ARENA_MIN_LEVEL}</span> to enter the Arena.</p>
+          <p className="mt-2 text-[11px] text-stone-500">Current level: <span className="font-bold text-stone-300">{playerLevel}</span> · {ARENA_MIN_LEVEL - playerLevel} more to go!</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

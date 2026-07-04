@@ -106,10 +106,14 @@ export function previewPrestigeGain(currentRunGold: number): number {
 
 /** Minimum gold required before a rebirth is allowed. */
 export const REBIRTH_MIN_GOLD = 1000;
+/** Minimum player level to rebirth. */
+export const REBIRTH_MIN_LEVEL = 50;
+/** Level reset to after rebirth. */
+export const REBIRTH_RESET_LEVEL = 10;
 
 /** Whether the player can rebirth right now. */
 export function canRebirth(state: GameState): boolean {
-  return state.prestige.current_run_gold >= REBIRTH_MIN_GOLD;
+  return state.prestige.current_run_gold >= REBIRTH_MIN_GOLD && state.player.level >= REBIRTH_MIN_LEVEL;
 }
 
 /**
@@ -199,6 +203,7 @@ export function performRebirth(state: GameState): { state: GameState; pointsGain
     player: {
       ...fresh.player,
       id: state.player.id, // keep identity
+      level: REBIRTH_RESET_LEVEL, // reset to 10, not 1
     },
     stats: state.stats,                       // lifetime
     achievements_unlocked: state.achievements_unlocked, // lifetime

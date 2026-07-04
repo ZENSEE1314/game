@@ -149,7 +149,7 @@ export function createInitialTapNodes(): TapNodesState {
 }
 
 /** Yield per tap for a node type at the current tool level. */
-export function tapYield(state: GameState, node: 'tree' | 'mine' | 'farm'): { wood?: number; stone?: number; iron?: number; gold: number } {
+export function tapYield(state: GameState, node: 'tree' | 'mine' | 'farm'): { wood?: number; stone?: number; iron?: number; food?: number; gold: number } {
   const tn = state.tap_nodes;
   // Trinket bonus (tap_yield) — applied to all tap yields.
   const tapMult = trinketMultiplier(state, 'tap_yield');
@@ -164,8 +164,8 @@ export function tapYield(state: GameState, node: 'tree' | 'mine' | 'farm'): { wo
         iron: Math.floor((2 + 1 * (tn.pickaxe_level - 1)) * tapMult),
       };
     case 'farm':
-      // Sickle boosts gold. 10 base, +5 per level.
-      return { gold: Math.floor((10 + 5 * (tn.sickle_level - 1)) * tapMult) };
+      // Sickle boosts FOOD (Rice Farm). Gold ONLY from Arena battles + Cave hunt.
+      return { food: Math.floor((8 + 4 * (tn.sickle_level - 1)) * tapMult), gold: 0 };
   }
 }
 
@@ -199,7 +199,8 @@ export function tapNode(
   if (y.wood) next.resources.wood.current_amount += y.wood;
   if (y.stone) next.resources.stone.current_amount += y.stone;
   if (y.iron) next.resources.iron.current_amount += y.iron;
-  if (y.gold) next.player.gold += y.gold;
+  if (y.food) next.resources.food.current_amount += y.food;
+  if (y.gold && y.gold > 0) next.player.gold += y.gold;
   // Track run gold for prestige.
   if (y.gold && y.gold > 0 && next.prestige) {
     next.prestige.current_run_gold += y.gold;
@@ -248,6 +249,7 @@ export function formatTapYield(y: ReturnType<typeof tapYield>): string {
   if (y.wood) parts.push(`+${formatNumber(y.wood)} 🪵`);
   if (y.stone) parts.push(`+${formatNumber(y.stone)} 🪨`);
   if (y.iron) parts.push(`+${formatNumber(y.iron)} ⛏️`);
-  if (y.gold) parts.push(`+${formatNumber(y.gold)} 🪙`);
+  if (y.food) parts.push(`+${formatNumber(y.food)} 🌾`);
+  if (y.gold && y.gold > 0) parts.push(`+${formatNumber(y.gold)} 🪙`);
   return parts.join('  ');
 }

@@ -39,6 +39,7 @@ import { NotificationToasts } from "@/components/game/NotificationToasts";
 import { AmbientGlow } from "@/components/game/ui/AmbientGlow";
 import { OfflineEarningsModal } from "@/components/game/OfflineEarningsModal";
 import { BattleReportModal } from "@/components/game/BattleReportModal";
+import { AuthGate } from "@/components/game/AuthGate";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import {
@@ -115,6 +116,7 @@ export default function Home() {
   };
 
   return (
+    <AuthGate>
     <div className="relative flex min-h-screen flex-col bg-stone-950 text-stone-100">
       {/* Atmospheric background */}
       <div
@@ -252,5 +254,6 @@ export default function Home() {
         </div>
       </footer>
     </div>
+    </AuthGate>
   );
 }

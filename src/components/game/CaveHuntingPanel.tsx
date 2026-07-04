@@ -35,7 +35,7 @@ import { UpgradeButton } from "@/components/game/ui/UpgradeButton";
 import { AdModal } from "@/components/game/AdModal";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { Skull, Clock, Zap, Package, Coins, Check, X, Hammer } from "lucide-react";
+import { Skull, Clock, Zap, Package, Coins, Check, X, Hammer, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CaveHuntResult } from "@/lib/game/types";
 
@@ -64,6 +64,21 @@ export function CaveHuntingPanel() {
   const entriesLeft = CAVE_MAX_ENTRIES_PER_DAY - state.cave.entries_today;
   const msToReset = Math.max(0, state.cave.next_reset_at - Date.now());
   const resetH = Math.floor(msToReset / 3600000);
+
+  const CAVE_MIN_LEVEL = 10;
+  if (state.player.level < CAVE_MIN_LEVEL) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-2"><Skull className="size-5 text-rose-400" /><h2 className="text-lg font-bold text-stone-100">Cave Hunting</h2><div className="h-px flex-1 bg-stone-800/60" /></div>
+        <div className="flex flex-col items-center justify-center rounded-lg border border-rose-900/40 bg-rose-950/15 px-4 py-12 text-center">
+          <Lock className="size-12 text-rose-400/60" />
+          <h3 className="mt-3 text-base font-bold text-rose-200">Cave Hunting Locked</h3>
+          <p className="mt-1 text-xs text-stone-400">You must reach <span className="font-bold text-amber-300">Level {CAVE_MIN_LEVEL}</span> to enter caves.</p>
+          <p className="mt-2 text-[11px] text-stone-500">Current level: <span className="font-bold text-stone-300">{state.player.level}</span> · {CAVE_MIN_LEVEL - state.player.level} more to go!</p>
+        </div>
+      </div>
+    );
+  }
   const resetM = Math.floor((msToReset % 3600000) / 60000);
 
   const handleHunt = (caveId: string, caveName: string) => {

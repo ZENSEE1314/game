@@ -633,9 +633,12 @@ export const useGameStore = create<GameStore>()(
 
       createGuild: (name, tag) => {
         const s = get();
+        if (s.state.player.gold < 500) { playSound('error'); return false; }
         const result = createGuildFn(s.state, name, tag);
         if (result.ok) {
-          set({ state: result.state });
+          const next = structuredClone(result.state);
+          next.player.gold -= 500; // 500 gold to create a guild
+          set({ state: next });
           playSound('upgrade');
         } else {
           playSound('error');
@@ -772,6 +775,12 @@ export const useGameStore = create<GameStore>()(
           arena_stamina: currentState.arena_stamina ?? current.state.arena_stamina,
           tap_nodes: currentState.tap_nodes ?? current.state.tap_nodes,
           cave: currentState.cave ?? current.state.cave,
+          food_upkeep: currentState.food_upkeep ?? current.state.food_upkeep ?? { last_deducted_at: Date.now(), last_deduction: 0 },
+          resources: {
+            ...current.state.resources,
+            ...(currentState.resources ?? {}),
+            food: currentState.resources?.food ?? current.state.resources.food,
+          },
           inventory: {
             items: currentState.inventory?.items ?? current.state.inventory.items,
             trinkets: currentState.inventory?.trinkets ?? current.state.inventory.trinkets ?? {},

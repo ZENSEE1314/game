@@ -53,13 +53,16 @@ export function doUpgradeFacility(state: GameState, facility: keyof GameState['f
   const currentLevel = state.facilities[facility];
   const cost = facilityUpgradeCost(currentLevel);
 
+  const foodCost = Math.floor(cost.gold * 0.1); // 10% of gold cost as food
+
   if (
     state.player.gold < cost.gold ||
     state.resources.wood.refined_amount < cost.refined_wood ||
     state.resources.stone.refined_amount < cost.refined_stone ||
-    state.resources.iron.refined_amount < cost.refined_iron
+    state.resources.iron.refined_amount < cost.refined_iron ||
+    (state.resources.food && state.resources.food.current_amount < foodCost)
   ) {
-    return { state, success: false, reason: 'Insufficient resources' };
+    return { state, success: false, reason: 'Insufficient resources (need food too!)' };
   }
 
   let next = structuredClone(state);
@@ -67,6 +70,7 @@ export function doUpgradeFacility(state: GameState, facility: keyof GameState['f
   next.resources.wood.refined_amount -= cost.refined_wood;
   next.resources.stone.refined_amount -= cost.refined_stone;
   next.resources.iron.refined_amount -= cost.refined_iron;
+  if (next.resources.food) next.resources.food.current_amount -= foodCost;
   next.facilities[facility] = currentLevel + 1;
   next = syncDerived(next);
   next = awardXp(next, 10);
@@ -84,13 +88,15 @@ export function doRecruitTroops(state: GameState, count: number): ActionResult {
   const totalGold = cost.gold * count;
   const totalIron = cost.refined_iron * count;
   const totalWood = cost.refined_wood * count;
+  const totalFood = 2 * count; // 2 food per troop
 
   if (
     state.player.gold < totalGold ||
     state.resources.iron.refined_amount < totalIron ||
-    state.resources.wood.refined_amount < totalWood
+    state.resources.wood.refined_amount < totalWood ||
+    (state.resources.food && state.resources.food.current_amount < totalFood)
   ) {
-    return { state, success: false, reason: 'Insufficient resources' };
+    return { state, success: false, reason: 'Insufficient resources (need food too!)' };
   }
   if (state.army.active_troops + count > state.army.max_troop_capacity) {
     return { state, success: false, reason: 'Exceeds troop capacity' };
@@ -100,6 +106,7 @@ export function doRecruitTroops(state: GameState, count: number): ActionResult {
   next.player.gold -= totalGold;
   next.resources.iron.refined_amount -= totalIron;
   next.resources.wood.refined_amount -= totalWood;
+  if (next.resources.food) next.resources.food.current_amount -= totalFood;
   next.army.active_troops += count;
   next = awardXp(next, RECRUIT_XP * count);
   next.stats.total_troops_recruited += count;
