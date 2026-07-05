@@ -39,16 +39,10 @@ export function tickResource(res: ResourceState, seconds: number, rawMult = 1, r
   // --- (1) Raw accumulation (with prestige multiplier) -----------------
   let raw = res.current_amount + res.raw_per_sec * rawMult * seconds;
 
-  // --- (2) Processing automation (with prestige multiplier) ------------
-  // Refined we *want* to produce this tick.
-  const desiredRefined = res.processing_rate * refineMult * seconds;
-  // Raw units that would be consumed to produce `desiredRefined`.
-  const rawNeeded = desiredRefined * REFINE_COST_RATIO;
-  // Clamp to available raw (can't refine what we don't have).
-  const actualRefined = raw >= rawNeeded ? desiredRefined : (raw / REFINE_COST_RATIO);
-  const rawConsumed = actualRefined * REFINE_COST_RATIO;
-
-  raw = Math.max(0, raw - rawConsumed);
+  // --- (2) Processing automation — refined produced WITHOUT consuming raw.
+  // User requested: only Food auto-deducts (army upkeep), wood/stone/ore
+  // should only increase, not be consumed by refining.
+  const actualRefined = res.processing_rate * refineMult * seconds;
 
   return {
     current_amount: raw,
@@ -100,13 +94,11 @@ export function applyProductionTick(state: GameState, seconds: number): GameStat
     }
   }
 
-  // Passive gold trickle (prestige logistics × event gold buff × trinket bonus).
-  const goldTrinket = trinketMultiplier(next, 'gold_per_sec');
-  const goldGained = goldPerSec(next.player.level) * goldMult * goldEvent * goldTrinket * seconds;
-  next.player.gold += goldGained;
+  // NO passive gold generation — gold ONLY from Arena battles + Cave hunting.
+  // Remove the goldPerSec passive trickle entirely.
 
-  // Track run gold for the rebirth calc.
-  next.prestige = trackRunGold(next, goldGained).prestige;
+  // Track run gold for the rebirth calc (only from battle/cave loot, not passive).
+  // next.prestige = trackRunGold(next, goldGained).prestige;
 
   next.last_saved_at = Date.now();
   return next;
@@ -156,7 +148,7 @@ export function calculate_offline_earnings(
     refined_wood_gained: after.resources.wood.refined_amount - before.resources.wood.refined_amount,
     refined_stone_gained: after.resources.stone.refined_amount - before.resources.stone.refined_amount,
     refined_iron_gained: after.resources.iron.refined_amount - before.resources.iron.refined_amount,
-    gold_gained: after.player.gold - before.player.gold,
+    gold_gained: 0, // No passive gold — only from battle/cave
     seconds_elapsed: elapsed,
   };
 }
